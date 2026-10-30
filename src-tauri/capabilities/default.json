@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Least-privilege capabilities for all windows. No fs plugin and no dialog plugin: document/workspace/asset/export access and native dialogs go through audited Rust commands (ADR-005).",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "clipboard-manager:allow-write-text",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-create",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "core:window:allow-get-all-windows",
+    "core:window:allow-destroy",
+    "core:path:default"
+  ]
+}

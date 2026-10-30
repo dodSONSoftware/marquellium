@@ -1,0 +1,315 @@
+/* Read mode typography (FR-031/FR-032 M2 base).
+   Coordinated light/dark palettes; M5 makes these user-configurable. */
+
+:root {
+  --reader-max-width: 46rem;
+  --reader-line-height: 1.65;
+  --reader-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --reader-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
+  --code-bg: #f3f4f6;
+  --code-border: #d3d5d8;
+  --code-text: #242526;
+  --hl-keyword: #a626a4;
+  --hl-string: #50a14f;
+  --hl-number: #986801;
+  --hl-comment: #a0a1a7;
+  --hl-title: #4078f2;
+  --hl-attr: #c18401;
+  --raw-html-bg: #fdf1f0;
+  --raw-html-border: #e0b4b0;
+  --raw-html-text: #7a2e28;
+  --math-bg: #eef4fb;
+  --math-border: #b9cfe4;
+  --mermaid-bg: #f4f1fb;
+  --mermaid-border: #cfc4e6;
+}
+
+:root[data-theme="dark"] {
+  --code-bg: #26272b;
+  --code-border: #3a3b40;
+  --code-text: #d8d9db;
+  --hl-keyword: #c678dd;
+  --hl-string: #98c379;
+  --hl-number: #d19a66;
+  --hl-comment: #7f848e;
+  --hl-title: #61afef;
+  --hl-attr: #e5c07b;
+  --raw-html-bg: #3a2a28;
+  --raw-html-border: #6b4a45;
+  --raw-html-text: #e8b4ae;
+  --math-bg: #243141;
+  --math-border: #3d5470;
+  --mermaid-bg: #2e2a3a;
+  --mermaid-border: #4a4263;
+}
+
+.reader {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem 3rem;
+  font-family: var(--reader-font);
+  line-height: var(--reader-line-height);
+  color: var(--text);
+  background: var(--bg);
+}
+
+.reader > :first-child {
+  margin-top: 0;
+}
+
+.reader .frontmatter-card {
+  max-width: var(--reader-max-width);
+  margin: 0 auto 1.5rem;
+}
+
+.reader h1,
+.reader h2,
+.reader h3,
+.reader h4,
+.reader h5,
+.reader h6 {
+  line-height: 1.3;
+  margin: 1.6em 0 0.6em;
+  scroll-margin-top: 1rem;
+}
+
+.reader h1 {
+  font-size: 1.9rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+
+.reader h2 {
+  font-size: 1.45rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25em;
+}
+
+.reader h3 { font-size: 1.2rem; }
+.reader h4 { font-size: 1.05rem; }
+.reader h5, .reader h6 { font-size: 0.95rem; color: var(--muted); }
+
+.reader p { margin: 0.8em 0; }
+
+.reader a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reader a:hover,
+.reader a:focus-visible {
+  text-decoration: underline;
+}
+
+.reader a.ext-link::after {
+  content: " ↗";
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+.reader ul,
+.reader ol {
+  padding-left: 1.6em;
+  margin: 0.8em 0;
+}
+
+.reader li { margin: 0.25em 0; }
+
+.reader li > input[type="checkbox"] {
+  margin-right: 0.45em;
+}
+
+.reader blockquote {
+  margin: 1em 0;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.reader hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+.reader table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+
+.reader th,
+.reader td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.8em;
+  text-align: left;
+}
+
+.reader th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.reader img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.reader .inline-code {
+  font-family: var(--reader-mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+/* --- code blocks ------------------------------------------------------------ */
+
+.reader .codeblock {
+  max-width: var(--reader-max-width);
+  margin: 1em auto;
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--code-bg);
+  position: relative;
+}
+
+.reader .codeblock pre {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  font-family: var(--reader-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--code-text);
+}
+
+.reader .codeblock code {
+  font-family: var(--reader-mono);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.reader .codeblock-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--code-border);
+}
+
+.reader .codeblock-head button,
+.reader .codeblock-foot button {
+  border: 1px solid var(--code-border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  cursor: pointer;
+}
+
+.reader .codeblock-head button:hover,
+.reader .codeblock-foot button:hover {
+  border-color: var(--accent);
+}
+
+.reader .codeblock-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.35rem 0.9rem;
+  border-top: 1px solid var(--code-border);
+}
+
+.reader .codeblock-badge {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--code-border);
+  color: var(--muted);
+}
+
+.reader .codeblock.kind-raw-html pre {
+  background: var(--raw-html-bg);
+}
+
+.reader .codeblock.kind-raw-html code {
+  color: var(--raw-html-text);
+}
+
+.reader .codeblock.kind-math pre {
+  background: var(--math-bg);
+}
+
+.reader .codeblock.kind-mermaid pre {
+  background: var(--mermaid-bg);
+  border-left: 3px solid var(--mermaid-border);
+}
+
+/* hljs coordinated palette */
+.reader .hljs-keyword,
+.reader .hljs-selector-tag,
+.reader .hljs-meta { color: var(--hl-keyword); }
+.reader .hljs-string,
+.reader .hljs-attr { color: var(--hl-attr); }
+.reader .hljs-number,
+.reader .hljs-literal { color: var(--hl-number); }
+.reader .hljs-title,
+.reader .hljs-name,
+.reader .hljs-section { color: var(--hl-title); }
+.reader .hljs-comment,
+.reader .hljs-quote { color: var(--hl-comment); font-style: italic; }
+.reader .hljs-built_in { color: var(--hl-keyword); }
+.reader .hljs-type,
+.reader .hljs-class .hljs-title { color: var(--hl-title); }
+
+/* --- frontmatter -------------------------------------------------------------- */
+
+.reader .frontmatter-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.reader .fm-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+}
+
+.reader .fm-key {
+  color: var(--muted);
+  min-width: 8rem;
+  font-family: var(--reader-mono);
+  font-size: 0.8rem;
+}
+
+.reader .fm-value {
+  word-break: break-word;
+}
+
+/* --- placeholders --------------------------------------------------------------- */
+
+/* Remote/blocked images become inert placeholders (pipeline, T4). */
+[data-render="img-unavailable"] {
+  display: inline-block;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8rem;
+  margin: 0.4rem 0;
+}

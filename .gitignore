@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.pnpm-store/
+
+# Rust
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+
+# OS ephemeral
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local tooling / logs
+*.log
+.vite/
+coverage/
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,501 @@
+/* M1 shell + theme tokens. M2/M4 will add reader/visual surfaces on top. */
+
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  /* light defaults; system-dark override below */
+  --bg: #ffffff;
+  --surface: #f5f6f7;
+  --surface-2: #ebedef;
+  --text: #242526;
+  --muted: #6a6c6e;
+  --accent: #2563a8;
+  --danger: #c0392b;
+  --border: #d3d5d8;
+  color: var(--text);
+  background-color: var(--bg);
+}
+
+:root[data-theme="dark"] {
+  --bg: #1e1f22;
+  --surface: #26272b;
+  --surface-2: #303136;
+  --text: #d8d9db;
+  --muted: #9a9c9e;
+  --accent: #4d9fdc;
+  --danger: #e07060;
+  --border: #3a3b40;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f5f6f7;
+  --surface-2: #ebedef;
+  --text: #242526;
+  --muted: #6a6c6e;
+  --accent: #2563a8;
+  --danger: #c0392b;
+  --border: #d3d5d8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #1e1f22;
+    --surface: #26272b;
+    --surface-2: #303136;
+    --text: #d8d9db;
+    --muted: #9a9c9e;
+    --accent: #4d9fdc;
+    --danger: #e07060;
+    --border: #3a3b40;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* --- layout ---------------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- tab bar ---------------------------------------------------------------- */
+
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-right: 1px solid var(--border);
+  cursor: default;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.tab.active {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* FR-004: a tab being drag-reordered. */
+.tab.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab .dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.tab-close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tab-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.tab-new {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.05rem;
+  padding: 0 0.8rem;
+  cursor: pointer;
+}
+
+.tab-new:hover {
+  color: var(--text);
+}
+
+/* --- toolbar ------------------------------------------------------------------ */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toolbar button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.toolbar button.mode.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.toolbar button.mode.disabled {
+  opacity: 0.45;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--border);
+  margin: 0 0.2rem;
+}
+
+.toolbar .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.32rem 0.45rem;
+}
+
+.toolbar .icon-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+/* --- content ------------------------------------------------------------------ */
+
+.content {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* M3 panes: editor + reader stay mounted; modes toggle visibility. */
+.panes {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane {
+  flex: 1 1 0;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane-hidden {
+  display: none !important;
+}
+
+.pane-divider {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: var(--border);
+  touch-action: none;
+}
+
+.pane-divider:hover,
+.pane-divider:active {
+  background: var(--accent);
+}
+
+/* Formatting toolbar (FR-013). */
+.toolbar .fmt {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  min-width: 1.6rem;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--muted);
+}
+
+.empty button {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.empty button:hover {
+  border-color: var(--accent);
+}
+
+/* Recent files in the empty state (FR-004) */
+.empty .recents {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: min(420px, 80vw);
+  max-width: 80vw;
+}
+.empty .recents h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  align-self: flex-start;
+}
+.empty .recents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.empty .recents li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg);
+}
+.empty .recents li:hover {
+  border-color: var(--accent);
+}
+.empty .recents li button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.empty .recents li button:hover {
+  color: var(--accent);
+  border-color: transparent;
+}
+.empty .recents .recent-path {
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- status bar ---------------------------------------------------------------- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 0.8rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.status-dirty {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.status-right {
+  margin-left: auto;
+}
+
+/* --- toasts / dialogs ------------------------------------------------------------ */
+
+/* FR-001: OS file drag hovering the window with openable files.
+   pointer-events: none so it never swallows the drop. */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  pointer-events: none;
+}
+.drop-overlay span {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 0.6rem 1.4rem;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.3);
+}
+
+.toast {
+  position: fixed;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  max-width: 80vw;
+  z-index: 100;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.dialog {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.3rem;
+  min-width: 380px;
+  max-width: 560px;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.35);
+}
+
+.dialog h3 {
+  margin: 0 0 0.5rem;
+}
+
+.dialog p {
+  margin: 0 0 1rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dialog button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dialog button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.dialog button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.recovery-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.recovery-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+}
+
+.recovery-list li button {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.recovery-list li button + button {
+  margin-left: 0.35rem;
+}

@@ -1,0 +1,97 @@
+/* Source mode (M3, FR-011). CodeMirror 6 injects its own layout styles at
+   runtime (StyleModule), so this file only adds app-token theming and the
+   bits CM leaves neutral: fonts, surfaces, search panel, focus ring. */
+
+.editor-host {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.editor-host .cm-editor {
+  flex: 1;
+  height: 100%;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--reader-mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.editor-host .cm-content {
+  padding: 1.25rem 1.5rem;
+  caret-color: var(--accent);
+}
+
+.editor-host .cm-cursor,
+.editor-host .cm-dropCursor {
+  border-left-color: var(--accent);
+}
+
+/* Selection: CM's default blue is too saturated for both themes. */
+.editor-host .cm-content ::selection,
+.editor-host .cm-content::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Search match markers read these custom properties (FR-040 find/replace). */
+.editor-host .cm-editor {
+  --searchMatchBg: color-mix(in srgb, var(--accent) 22%, transparent);
+  --searchMatch: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* Panels (search bar, results) follow the app surface tokens. */
+.editor-host .cm-panels {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--reader-font);
+  font-size: 0.85rem;
+}
+
+.editor-host .cm-panels input,
+.editor-host .cm-panels button,
+.editor-host .cm-panels label,
+.editor-host .cm-panels span {
+  color: var(--text);
+}
+
+.editor-host .cm-panels input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
+}
+
+.editor-host .cm-panels input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.editor-host .cm-panels button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editor-host .cm-panels button:hover {
+  border-color: var(--accent);
+}
+
+.editor-host .cm-panels .cm-textfield {
+  background: transparent;
+  border: none;
+}
+
+/* Faint focus ring on the whole editor pane (not per-keystroke). */
+.editor-host .cm-editor.cm-focused {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
