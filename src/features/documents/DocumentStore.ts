@@ -22,6 +22,7 @@
  */
 import {
   native,
+  onDraftChanged,
   type DocumentSnapshot,
   type DocumentUpdate,
   type SaveResult,
@@ -35,9 +36,13 @@ import {
 } from "../../core/ops";
 import { ByteIndex, changesToByteOps } from "../../core/positions";
 import { diffRange } from "../../core/text-diff";
+import { captureLocalizedEdit, prepareLocalizedEdit, type LocalizedEdit } from "../../core/localized-edit";
+import type { DraftLease, DraftPort } from "../../core/draft-session";
+import { subscriptionScope } from "../../services/subscription-scope";
+import type { SourceSnapshot } from "../../core/source-map";
 
 interface QueuedBatch {
-  ops: ByteOp[];
+  prepare: (doc: LocalDoc) => { baseRevision: number; ops: ByteOp[]; localized?: boolean; commit?: () => Promise<DocumentUpdate | null> };
   resolve: () => void;
   reject: (err: unknown) => void;
 }
@@ -105,6 +110,8 @@ export class DocumentStore {
   private docs = new Map<string, LocalDoc>();
   private pendingQueue = new Map<string, QueuedBatch[]>();
   private processing = new Set<string>();
+  private queueTails = new Map<string, Promise<void>>();
+  private localizedTails = new Map<string, Promise<void>>();
   private commits = new Map<string, Promise<void>>();
   private commitErrors = new Map<string, unknown>();
   private committingBytes = new Map<string, Uint8Array>();
@@ -160,6 +167,10 @@ export class DocumentStore {
     return snap.docId;
   }
 
+  async attachDocument(docId: string): Promise<void> {
+    if (!this.docs.has(docId)) await this.adopt(docId);
+  }
+
   private async adopt(docId: string): Promise<void> {
     const snap = await native.documents.snapshot(docId);
     if (!snap) throw new Error(`unknown document ${docId}`);
@@ -204,10 +215,18 @@ export class DocumentStore {
 
   private async resync(docId: string): Promise<void> {
     const snap = await native.documents.snapshot(docId);
-    if (snap && this.docs.has(docId)) {
+    const current = this.docs.get(docId);
+    if (snap && current && snap.revision >= current.revision) {
       this.docs.set(docId, this.fromSnapshot(snap));
       this.emit();
     }
+  }
+
+  /** A save changes metadata without advancing the canonical text revision. */
+  async refreshSavedDocument(docId: string): Promise<void> {
+    if (!this.docs.has(docId)) return;
+    await this.resync(docId);
+    if (!this.isDirty(docId)) this.clearRecovery(docId);
   }
 
   // --- edit groups (M3, ADR-006/007) ----------------------------------------
@@ -220,7 +239,12 @@ export class DocumentStore {
   isDirty(docId: string): boolean {
     const d = this.docs.get(docId);
     if (!d) return false;
-    return d.dirty || this.commits.has(docId) || this.commitErrors.has(docId) || (this.pendingGroups.get(docId)?.ops.length ?? 0) > 0;
+    return d.dirty || this.commitErrors.has(docId) || this.hasPendingTransactions(docId);
+  }
+
+  private hasPendingTransactions(docId: string): boolean {
+    return this.localizedTails.has(docId) || this.queueTails.has(docId) ||
+      this.commits.has(docId) || (this.pendingGroups.get(docId)?.ops.length ?? 0) > 0;
   }
 
   /**
@@ -252,6 +276,88 @@ export class DocumentStore {
     const op = fullReplaceOp(doc.bytes, text);
     this.scheduleRecovery(docId);
     await this.enqueue(docId, [op]);
+  }
+
+  /** Capture mapping input only after all earlier local transactions acknowledge. */
+  async captureSourceSnapshot(docId: string): Promise<SourceSnapshot> {
+    do {
+      await this.flushGroup(docId);
+    } while (this.hasPendingTransactions(docId));
+    const doc = this.docs.get(docId);
+    if (!doc) throw new Error(`unknown document ${docId}`);
+    return Object.freeze({ docId, revision: doc.revision, text: bytesToString(doc.bytes) });
+  }
+
+  /** Submit a captured range edit once; never rebase it onto a newer revision. */
+  applyLocalizedEdit(edit: LocalizedEdit): Promise<void> {
+    const captured = captureLocalizedEdit(edit);
+    return this.serializeLocalized(captured.docId, async () => {
+      let changed = false;
+      await this.enqueuePrepared(captured.docId, (doc) => {
+        if (this.pendingGroups.has(captured.docId)) throw new Error("pending Source edits; capture a fresh snapshot");
+        const current = { docId: doc.docId, revision: doc.revision, text: bytesToString(doc.bytes) };
+        const ops = prepareLocalizedEdit(current, captured);
+        changed = ops.length > 0;
+        return { baseRevision: captured.baseRevision, ops, localized: true };
+      });
+      if (changed && this.docs.has(captured.docId)) this.scheduleRecovery(captured.docId);
+    });
+  }
+
+  private serializeLocalized(docId: string, operation: () => Promise<void>): Promise<void> {
+    const previous = this.localizedTails.get(docId);
+    const done = (async () => {
+      await previous;
+      await this.flushCanonicalQueue(docId);
+      await operation();
+    })();
+    // Register before returning, including the pre-dispatch Source flush. A
+    // Save/close immediately after Apply must see the entire pending operation.
+    this.localizedTails.set(docId, done);
+    const clearTail = () => {
+      if (this.localizedTails.get(docId) === done) this.localizedTails.delete(docId);
+    };
+    void done.then(clearTail, clearTail);
+    return done;
+  }
+
+  /** Draft commands share the canonical queue, but CM draft history never does. */
+  get draftPort(): DraftPort {
+    return {
+      snapshot: async (docId) => {
+        await this.flushGroup(docId);
+        await this.resync(docId);
+        return this.captureSourceSnapshot(docId);
+      },
+      info: native.drafts.info,
+      acquire: native.drafts.acquire,
+      update: native.drafts.update,
+      release: native.drafts.release,
+      apply: (lease, ops) => this.commitDraft(lease, ops),
+      watch: (docId, listener) => {
+        const subscriptions = subscriptionScope((error) => listener({ error: String(error) }));
+        subscriptions.add(onDraftChanged((event) => { if (event.docId === docId) listener({ lease: event.lease }); }));
+        const unsubscribe = this.subscribe((docs) => {
+          const doc = docs.get(docId);
+          if (doc) listener({ snapshot: { docId, revision: doc.revision, text: bytesToString(doc.bytes) } });
+        });
+        return () => { subscriptions.dispose(); unsubscribe(); };
+      },
+    };
+  }
+
+  private commitDraft(lease: DraftLease, ops: ByteOp[]): Promise<void> {
+    lease = { ...lease, opening: { ...lease.opening } };
+    ops = ops.map((op) => ({ ...op }));
+    return this.serializeLocalized(lease.docId, async () => {
+      await this.enqueuePrepared(lease.docId, (doc) => {
+        if (this.pendingGroups.has(lease.docId)) throw new Error("pending Source edits; draft Apply must retry against current state");
+        if (doc.revision !== lease.opening.baseRevision) throw new Error("stale draft revision");
+        return { baseRevision: lease.opening.baseRevision, ops,
+          commit: () => native.drafts.apply(lease.docId, lease.token, lease.generation, ops) };
+      });
+      if (ops.length > 0 && this.docs.has(lease.docId)) this.scheduleRecovery(lease.docId);
+    });
   }
 
   /**
@@ -302,9 +408,10 @@ export class DocumentStore {
     this.pendingGroups.delete(docId);
   }
 
-  /** Commit all pending groups now (window blur; pagehide best-effort). */
+  /** Flush all local groups and queued transactions (pagehide is best-effort). */
   flushAll(): Promise<void[]> {
-    return Promise.all([...this.pendingGroups.keys()].map((id) => this.commitGroup(id)));
+    const ids = new Set([...this.pendingGroups.keys(), ...this.commits.keys(), ...this.queueTails.keys(), ...this.localizedTails.keys()]);
+    return Promise.all([...ids].map((id) => this.flushGroup(id)));
   }
 
   /**
@@ -313,9 +420,19 @@ export class DocumentStore {
    * awaited before save/undo/redo/reload/dispose.
    */
   async flushGroup(docId: string): Promise<void> {
-    await this.commits.get(docId);
-    await this.commitGroup(docId);
-    if (this.commitErrors.has(docId)) throw this.commitErrors.get(docId);
+    do {
+      await this.localizedTails.get(docId);
+      await this.flushCanonicalQueue(docId);
+    } while (this.hasPendingTransactions(docId));
+  }
+
+  private async flushCanonicalQueue(docId: string): Promise<void> {
+    do {
+      await this.commits.get(docId);
+      await this.commitGroup(docId);
+      await this.queueTails.get(docId);
+      if (this.commitErrors.has(docId)) throw this.commitErrors.get(docId);
+    } while (this.pendingGroups.has(docId) || this.commits.has(docId) || this.queueTails.has(docId));
   }
 
   private async commitGroup(docId: string): Promise<void> {
@@ -356,6 +473,10 @@ export class DocumentStore {
    * deliveries are ignored so delayed events cannot replay an edit.
    */
   private enqueue(docId: string, ops: ByteOp[]): Promise<void> {
+    return this.enqueuePrepared(docId, (doc) => ({ baseRevision: doc.revision, ops }));
+  }
+
+  private enqueuePrepared(docId: string, prepare: QueuedBatch["prepare"]): Promise<void> {
     const q = this.pendingQueue.get(docId) ?? [];
     let resolve!: () => void;
     let reject!: (err: unknown) => void;
@@ -363,7 +484,12 @@ export class DocumentStore {
       resolve = res;
       reject = rej;
     });
-    q.push({ ops, resolve, reject });
+    q.push({ prepare, resolve, reject });
+    this.queueTails.set(docId, done);
+    const clearTail = () => {
+      if (this.queueTails.get(docId) === done) this.queueTails.delete(docId);
+    };
+    void done.then(clearTail, clearTail);
     this.pendingQueue.set(docId, q);
     if (this.processing.has(docId)) return done;
     this.processing.add(docId);
@@ -378,14 +504,17 @@ export class DocumentStore {
             continue;
           }
           try {
-            const update = await native.documents.apply(
-              docId,
-              doc.revision,
-              item.ops,
-            );
-            if (this.docs.get(docId) === doc) {
-              this.applyUpdate(update);
+            const { baseRevision, ops, localized, commit } = item.prepare(doc);
+            if (ops.length === 0 && !commit) {
+              item.resolve();
+              continue;
             }
+            const update = commit ? await commit() : localized
+              ? await native.documents.applyLocalized(docId, baseRevision, ops)
+              : await native.documents.apply(docId, baseRevision, ops);
+            // A resync may have replaced the mirror object while IPC was in
+            // flight. Reconcile by document ID/revision, not object identity.
+            if (update) this.applyUpdate(update);
             item.resolve();
           } catch (err) {
             const msg = String(err);
@@ -398,7 +527,12 @@ export class DocumentStore {
               // the registry: the registry is the arbiter. The resync
               // moves the mirror to its truth; surviving batches re-
               // validate against the new revision or reject safely.
-              await this.resync(docId);
+              try {
+                await this.resync(docId);
+              } catch (syncError) {
+                item.reject(new AggregateError([err, syncError], "transaction rejected and resync failed"));
+                continue;
+              }
             }
             item.reject(err);
           }

@@ -33,6 +33,7 @@ export default defineConfig({
     sourcemap: false,
     outDir: "dist",
     rollupOptions: {
+      input: { main: "index.html", preview: "mermaid-preview.html" },
       // mermaid ships a large dynamic chunk; keep it code-split so first paint
       // of the shell is not blocked by the diagram engine.
       output: {

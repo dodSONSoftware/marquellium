@@ -14,7 +14,7 @@ mod tests;
 pub use recovery::{RecoveryInfo, RecoveryStore};
 pub use registry::{
     AppliedOp, DocEntry, DocId, DocumentRegistry, DocumentUpdate, NewlinePolicy, OpValidationError,
-    TransactionRecord, wire_ops,
+    TransactionRecord, wire_ops, DraftKind, DraftLease, DraftOpening, DraftUpdate,
 };
 pub use service::{DiskRevision, DocumentSnapshot, OpenError, SaveError, SaveResult};
 
@@ -54,6 +54,8 @@ pub enum ApplyError {
     StaleRevision { expected: u64, actual: u64 },
     #[error("invalid op: {0}")]
     InvalidOp(#[from] OpValidationError),
+    #[error("active draft protects this source range")]
+    ActiveDraft,
     #[error("document not found on disk")]
     NotOnDisk,
 }

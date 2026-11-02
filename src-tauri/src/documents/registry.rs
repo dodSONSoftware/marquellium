@@ -15,6 +15,10 @@ use serde::Serialize;
 use crate::documents::service::{DiskRevision, DocumentSnapshot};
 use crate::documents::{DocOp, WireTransaction};
 
+mod drafts;
+mod persistence;
+pub use drafts::{DraftKind, DraftLease, DraftOpening, DraftUpdate};
+
 /// Canonical document identifier: the path string for saved documents,
 /// `untitled-<n>` for new documents.
 pub type DocId = String;
@@ -86,7 +90,7 @@ pub struct DocEntry {
     /// How many window views currently show this document (AT-117).
     pub views: u32,
     /// Set while an inline source draft session is open (ADR-008).
-    pub draft_active: Option<String>,
+    draft: Option<DraftLease>,
     undo: Vec<TransactionRecord>,
     redo: Vec<TransactionRecord>,
 }
@@ -137,6 +141,7 @@ pub struct DocumentUpdate {
 struct Inner {
     docs: HashMap<DocId, DocEntry>,
     untitled_counter: u64,
+    draft_counter: u64,
 }
 
 pub struct DocumentRegistry {
@@ -155,6 +160,7 @@ impl DocumentRegistry {
             inner: Mutex::new(Inner {
                 docs: HashMap::new(),
                 untitled_counter: 0,
+                draft_counter: 0,
             }),
         }
     }
@@ -178,7 +184,7 @@ impl DocumentRegistry {
             disk_revision: None,
             dirty: true,
             views: 0,
-            draft_active: None,
+            draft: None,
             undo: Vec::new(),
             redo: Vec::new(),
         };
@@ -212,7 +218,7 @@ impl DocumentRegistry {
                 disk_revision: Some(disk_revision),
                 dirty: false,
                 views: 0,
-                draft_active: None,
+                draft: None,
                 undo: Vec::new(),
                 redo: Vec::new(),
             },
@@ -248,7 +254,7 @@ impl DocumentRegistry {
             saved_disk_revision: e.saved_revision.clone(),
             disk_revision: e.disk_revision.clone(),
             dirty: e.is_dirty(),
-            draft_active: e.draft_active.clone(),
+            draft_active: e.draft.as_ref().map(|draft| draft.token.clone()),
         })
     }
 
@@ -271,36 +277,8 @@ impl DocumentRegistry {
         Ok(e.views)
     }
 
-    /// Set/clear the inline-draft flag (ADR-008).
-    pub fn set_draft_active(&self, id: &str, token: Option<String>) -> Result<(), String> {
-        let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
-        e.draft_active = token;
-        Ok(())
-    }
-
     pub fn is_dirty(&self, id: &str) -> Option<bool> {
         self.lock().docs.get(id).map(|e| e.is_dirty())
-    }
-
-    pub fn disk_changed(&self, id: &str, new_rev: DiskRevision) -> bool {
-        let mut inner = self.lock();
-        match inner.docs.get_mut(id) {
-            Some(e) => {
-                let changed = match e.disk_revision.as_ref() {
-                    None => true,
-                    Some(prev) => {
-                        prev.content_hash != new_rev.content_hash
-                            || prev.size_bytes != new_rev.size_bytes
-                    }
-                };
-                if changed {
-                    e.disk_revision = Some(new_rev);
-                }
-                changed
-            }
-            None => false,
-        }
     }
 
     /// Record a successful save (service::save_atomic succeeded).
@@ -342,7 +320,7 @@ impl DocumentRegistry {
     /// coordinator has resolved drafts + dirty state (ADR-008).
     pub fn dispose(&self, id: &str) -> bool {
         let mut inner = self.lock();
-        if inner.docs.get(id).is_some_and(|entry| entry.views > 0) {
+        if inner.docs.get(id).is_some_and(|entry| entry.views > 0 || entry.draft.is_some()) {
             return false;
         }
         inner.docs.remove(id).is_some()
@@ -361,23 +339,37 @@ impl DocumentRegistry {
             .get_mut(id)
             .ok_or_else(|| crate::documents::ApplyError::UnknownDoc(id.to_string()))?;
 
+        Self::apply_entry(e, tx)
+    }
+
+    fn apply_entry(e: &mut DocEntry, tx: &WireTransaction) -> Result<TransactionRecord, crate::documents::ApplyError> {
         if tx.base_revision != e.revision {
-            return Err(crate::documents::ApplyError::StaleRevision {
-                expected: e.revision,
-                actual: tx.base_revision,
-            });
+            return Err(crate::documents::ApplyError::StaleRevision { expected: e.revision, actual: tx.base_revision });
         }
-        if tx.ops.is_empty() {
+        let applied = Self::validate_ops(&e.content, &tx.ops)?;
+        for op in applied.iter().rev() {
+            e.content.replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
+        }
+        e.revision += 1;
+        e.dirty = true;
+        let record = TransactionRecord { revision: e.revision, ops: applied };
+        e.undo.push(record.clone());
+        e.redo.clear();
+        Ok(record)
+    }
+
+    fn validate_ops(content: &str, ops: &[DocOp]) -> Result<Vec<AppliedOp>, crate::documents::ApplyError> {
+        if ops.is_empty() {
             return Err(crate::documents::ApplyError::InvalidOp(
                 OpValidationError::OutOfOrder(0),
             ));
         }
 
-        let len = e.content.len() as u32;
-        let mut applied: Vec<AppliedOp> = Vec::with_capacity(tx.ops.len());
+        let len = content.len() as u32;
+        let mut applied: Vec<AppliedOp> = Vec::with_capacity(ops.len());
         let mut cursor: u32 = 0;
 
-        for (i, op) in tx.ops.iter().enumerate() {
+        for (i, op) in ops.iter().enumerate() {
             if op.start_byte < cursor {
                 return Err(crate::documents::ApplyError::InvalidOp(
                     OpValidationError::OutOfOrder(i),
@@ -387,7 +379,7 @@ impl DocumentRegistry {
                 return Err(crate::documents::ApplyError::InvalidOp(
                     OpValidationError::OutOfBounds {
                         end_byte: op.end_byte,
-                        len: e.content.len(),
+                        len: content.len(),
                     },
                 ));
             }
@@ -399,17 +391,17 @@ impl DocumentRegistry {
                     },
                 ));
             }
-            if !e.content.is_char_boundary(op.start_byte as usize) {
+            if !content.is_char_boundary(op.start_byte as usize) {
                 return Err(crate::documents::ApplyError::InvalidOp(
                     OpValidationError::NotCharBoundary(op.start_byte),
                 ));
             }
-            if !e.content.is_char_boundary(op.end_byte as usize) {
+            if !content.is_char_boundary(op.end_byte as usize) {
                 return Err(crate::documents::ApplyError::InvalidOp(
                     OpValidationError::NotCharBoundary(op.end_byte),
                 ));
             }
-            let old = e.content[op.start_byte as usize..op.end_byte as usize].to_string();
+            let old = content[op.start_byte as usize..op.end_byte as usize].to_string();
             applied.push(AppliedOp {
                 start_byte: op.start_byte,
                 end_byte: op.end_byte,
@@ -419,23 +411,7 @@ impl DocumentRegistry {
             cursor = op.end_byte;
         }
 
-        // Apply in reverse order so earlier offsets stay valid.
-        for op in applied.iter().rev() {
-            e.content.replace_range(
-                op.start_byte as usize..op.end_byte as usize,
-                &op.text,
-            );
-        }
-
-        e.revision += 1;
-        e.dirty = true;
-        let record = TransactionRecord {
-            revision: e.revision,
-            ops: applied,
-        };
-        e.undo.push(record.clone());
-        e.redo.clear();
-        Ok(record)
+        Ok(applied)
     }
 
     /// Undo the last transaction; returns inverse operations at the new revision.
@@ -507,3 +483,6 @@ pub fn wire_ops(record: &TransactionRecord) -> Vec<DocOp> {
         .collect()
 }
 
+
+#[cfg(test)]
+mod drafts_tests;

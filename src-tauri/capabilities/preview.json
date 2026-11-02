@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "preview-worker",
+  "description": "Disposable Mermaid helper: no core/plugin permissions; only its two registered application commands are exposed.",
+  "windows": [
+    "preview-worker"
+  ],
+  "permissions": []
+}

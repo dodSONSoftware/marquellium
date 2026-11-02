@@ -16,6 +16,7 @@ pub mod assets;
 pub mod documents;
 pub mod export;
 pub mod media;
+mod preview;
 pub mod session;
 pub mod settings;
 pub mod workspace;
@@ -32,10 +33,10 @@ use notify::Watcher as _;
 use tauri::{Emitter, Manager, State};
 
 use crate::documents::{
-    wire_ops, DiskRevision, DocId, DocumentRegistry, DocumentUpdate, RecoveryInfo,
+    wire_ops, DocId, DocumentRegistry, DocumentUpdate, DraftLease, DraftOpening, DraftUpdate, RecoveryInfo,
     RecoveryStore, TransactionRecord,
 };
-use crate::documents::service::{disk_revision, open_document, save_atomic, save_as_atomic, DocumentSnapshot, SaveResult};
+use crate::documents::service::{open_document, DocumentSnapshot, SaveResult};
 use crate::documents::{DocOp, WireTransaction};
 use crate::session::{SessionState, SessionStore};
 use crate::settings::{Settings, SettingsStore};
@@ -237,10 +238,6 @@ fn documents_redo(
     }))
 }
 
-fn mark_saved(reg: &DocumentRegistry, id: &str, rev: &DiskRevision) {
-    let _ = reg.mark_saved(id, rev.clone());
-}
-
 #[tauri::command]
 fn documents_save(
     app: tauri::AppHandle,
@@ -249,11 +246,11 @@ fn documents_save(
     scope: State<'_, MediaScope>,
     doc_id: String,
 ) -> Result<SaveResult, String> {
-    let (path, expected) = {
+    let path = {
         let snap = reg
             .snapshot(&doc_id)
             .ok_or_else(|| format!("unknown document {doc_id}"))?;
-        let path = match snap.path {
+        match snap.path {
             Some(p) => PathBuf::from(p),
             None => {
                 return Ok(SaveResult {
@@ -263,13 +260,10 @@ fn documents_save(
                     message: Some("use save-as for a new document".into()),
                 });
             }
-        };
-        (path, snap.saved_disk_revision)
+        }
     };
-    let bytes = reg.canonical_bytes(&doc_id).unwrap_or_default();
-    match save_atomic(&path, &bytes, expected.as_ref()) {
+    match reg.save_to_disk(&doc_id, None) {
         Ok(rev) => {
-            mark_saved(&reg, &doc_id, &rev);
             media_follow(&scope, &path);
             let key = RecoveryStore::key_for(&Some(path.clone()), &doc_id);
             recovery.remove(&key);
@@ -307,14 +301,10 @@ fn documents_save_as(
     path: String,
 ) -> Result<SaveResult, String> {
     let path_buf = PathBuf::from(&path);
-    // Absence permits explicit creation; existing targets remain revision-checked.
-    let bytes = reg.canonical_bytes(&doc_id).unwrap_or_default();
-    let expected = disk_revision(&path_buf).ok();
-    match save_as_atomic(&path_buf, &bytes, expected.as_ref()) {
+    if reg.snapshot(&doc_id).is_none() { return Err(format!("unknown document {doc_id}")); }
+    match reg.save_to_disk(&doc_id, Some(path_buf.clone())) {
         Ok(rev) => {
             media_follow(&scope, &path_buf);
-            let _ = reg.rename_document(&doc_id, path.clone());
-            let _ = reg.mark_saved(&doc_id, rev.clone());
             let key = RecoveryStore::key_for(&Some(path_buf.clone()), &doc_id);
             recovery.remove(&key);
             let _ = app.emit(
@@ -384,13 +374,58 @@ fn documents_reload(
         .ok_or_else(|| format!("failed to read back {doc_id}"))
 }
 
+fn emit_draft_state(app: &tauri::AppHandle, reg: &DocumentRegistry, doc_id: &str) {
+    let _ = app.emit("draft-changed", serde_json::json!({ "docId": doc_id, "lease": reg.draft_info(doc_id) }));
+}
+
 #[tauri::command]
-fn documents_set_draft(
-    reg: State<'_, DocumentRegistry>,
-    doc_id: String,
-    token: Option<String>,
-) -> Result<(), String> {
-    reg.set_draft_active(&doc_id, token)
+fn drafts_acquire(app: tauri::AppHandle, window: tauri::Window, reg: State<'_, DocumentRegistry>, doc_id: String, opening: DraftOpening) -> Result<DraftLease, String> {
+    let lease = reg.acquire_draft(&doc_id, window.label(), opening)?;
+    emit_draft_state(&app, &reg, &doc_id);
+    Ok(lease)
+}
+
+#[tauri::command]
+fn drafts_update(app: tauri::AppHandle, window: tauri::Window, reg: State<'_, DocumentRegistry>, doc_id: String, token: String, update: DraftUpdate) -> Result<DraftLease, String> {
+    let lease = reg.update_draft(&doc_id, window.label(), &token, update)?;
+    emit_draft_state(&app, &reg, &doc_id);
+    Ok(lease)
+}
+
+#[tauri::command]
+fn drafts_release(app: tauri::AppHandle, window: tauri::Window, reg: State<'_, DocumentRegistry>, doc_id: String, token: String) -> Result<(), String> {
+    reg.release_draft(&doc_id, window.label(), &token)?;
+    emit_draft_state(&app, &reg, &doc_id);
+    Ok(())
+}
+
+#[tauri::command]
+fn drafts_info(reg: State<'_, DocumentRegistry>, doc_id: String) -> Option<DraftLease> {
+    reg.draft_info(&doc_id)
+}
+
+#[tauri::command]
+fn drafts_resume(app: tauri::AppHandle, window: tauri::Window, reg: State<'_, DocumentRegistry>, doc_id: String, token: String) -> Result<DraftLease, String> {
+    let lease = reg.resume_draft(&doc_id, window.label(), &token)?;
+    emit_draft_state(&app, &reg, &doc_id);
+    Ok(lease)
+}
+
+#[tauri::command]
+fn drafts_apply(app: tauri::AppHandle, window: tauri::Window, reg: State<'_, DocumentRegistry>, doc_id: String, token: String, generation: u64, ops: Vec<DocOp>) -> Result<Option<DocumentUpdate>, String> {
+    let record = reg.apply_draft(&doc_id, window.label(), &token, generation, ops)?;
+    let update = record.map(|record| build_update(&reg, &doc_id, "edit", &record));
+    if let Some(update) = &update { let _ = app.emit(EV_DOC_UPDATED, update); }
+    emit_draft_state(&app, &reg, &doc_id);
+    Ok(update)
+}
+
+#[tauri::command]
+fn documents_apply_localized(app: tauri::AppHandle, reg: State<'_, DocumentRegistry>, doc_id: String, base_revision: u64, ops: Vec<DocOp>) -> Result<DocumentUpdate, String> {
+    let record = reg.apply_localized_transaction(&doc_id, &WireTransaction { base_revision, ops }).map_err(|error| error.to_string())?;
+    let update = build_update(&reg, &doc_id, "edit", &record);
+    let _ = app.emit(EV_DOC_UPDATED, &update);
+    Ok(update)
 }
 
 /// Debounced recovery snapshot (FR-006). Content is the canonical buffer as
@@ -632,17 +667,8 @@ async fn drain_watcher(app: tauri::AppHandle, mut rx: tokio::sync::mpsc::Unbound
         let paths: Vec<PathBuf> = pending.drain().collect();
         if let Some(reg) = app.try_state::<DocumentRegistry>() {
             for p in &paths {
-                let Some(rev) = disk_revision(p).ok() else {
-                    continue; // deleted/renamed away: next save will surface it
-                };
                 for id in reg.get() {
-                    let Some(snap) = reg.snapshot(&id) else { continue };
-                    let Some(path) = snap.path.as_deref() else { continue };
-                    if path != p.to_str().unwrap_or("") {
-                        continue;
-                    }
-                    let auto_reload = !snap.dirty && snap.draft_active.is_none();
-                    if reg.disk_changed(&id, rev.clone()) {
+                    if let Some(auto_reload) = reg.observe_disk_change(&id, p) {
                         let _ = app.emit(
                             EV_DOC_CHANGED_ON_DISK,
                             DiskChangedEvent {
@@ -706,8 +732,12 @@ fn quit_app(app: tauri::AppHandle) {
     }
 }
 
+fn app_context() -> tauri::Context<tauri::Wry> { tauri::generate_context!() }
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--mermaid-preview-worker") { preview::run_worker(); return; }
+    if std::env::args().any(|arg| arg == "--mermaid-preview-check") { preview::check_from_stdin(); return; }
     let data_dir = app_data_dir();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
     let tx_for_state = tx.clone();
@@ -715,6 +745,7 @@ pub fn run() {
 
     let builder = tauri::Builder::default()
         .manage(DocumentRegistry::new())
+        .manage(preview::PreviewService::default())
         .manage(RecoveryStore::new(data_dir.join("recovery")))
         .manage(SettingsStore::new(data_dir.join("settings.json")))
         .manage(SessionStore::new(data_dir.join("session.json")))
@@ -784,6 +815,11 @@ pub fn run() {
         .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 eprintln!("close-flow window={} stage=Destroyed", window.label());
+                window.state::<preview::PreviewService>().cancel(window.label(), None);
+                let reg = window.state::<DocumentRegistry>();
+                for doc_id in reg.detach_window_drafts(window.label()) {
+                    emit_draft_state(window.app_handle(), &reg, &doc_id);
+                }
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 // Tauri emits tauri://close-requested to this window. Stay
@@ -795,6 +831,8 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
+            preview::previews_mermaid,
+            preview::previews_cancel,
             app_info,
             documents_new,
             documents_open,
@@ -811,7 +849,13 @@ pub fn run() {
             dialog_open_markdown,
             dialog_open_folder,
             dialog_save_markdown,
-            documents_set_draft,
+            drafts_acquire,
+            drafts_update,
+            drafts_release,
+            drafts_info,
+            drafts_resume,
+            drafts_apply,
+            documents_apply_localized,
             documents_recovery_snapshot,
             recovery_list,
             recovery_discard,
@@ -828,7 +872,7 @@ pub fn run() {
             quit_app,
             open_external_url
         ])
-        .build(tauri::generate_context!())
+        .build(app_context())
         .expect("error while building tauri application")
         .run(|app, event| {
             // OS/Dock Quit must resolve the same unsaved-work flow as menu Quit.

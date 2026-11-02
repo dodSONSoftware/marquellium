@@ -1,3 +1,4 @@
+import type { DraftLease, DraftOpening } from "../core/draft-session";
 /**
  * Typed facade over the Rust command surface (ADR-005: the only path the UI
  * has to the filesystem). Falls back to a no-op surface in the browser so
@@ -139,13 +140,24 @@ export const native = {
       invoke<DocumentSnapshot>("documents_reload", { docId }),
     saveAs: (docId: string, path: string) =>
       invoke<SaveResult>("documents_save_as", { docId, path }),
-    setDraft: (docId: string, token: string | null) =>
-      invoke<void>("documents_set_draft", { docId, token }),
+    applyLocalized: (docId: string, baseRevision: number, ops: DocOp[]) =>
+      invoke<DocumentUpdate>("documents_apply_localized", { docId, baseRevision, ops }),
     recoverySnapshot: (docId: string, draft: string | null) =>
       invoke<RecoveryInfo | null>("documents_recovery_snapshot", {
         docId,
         draft,
       }),
+  },
+
+  drafts: {
+    acquire: (docId: string, opening: DraftOpening) => invoke<DraftLease>("drafts_acquire", { docId, opening }),
+    info: (docId: string) => invoke<DraftLease | null>("drafts_info", { docId }),
+    update: (docId: string, token: string, update: { generation: number; text: string; valid: boolean }) =>
+      invoke<DraftLease>("drafts_update", { docId, token, update }),
+    release: (docId: string, token: string) => invoke<void>("drafts_release", { docId, token }),
+    resume: (docId: string, token: string) => invoke<DraftLease>("drafts_resume", { docId, token }),
+    apply: (docId: string, token: string, generation: number, ops: DocOp[]) =>
+      invoke<DocumentUpdate | null>("drafts_apply", { docId, token, generation, ops }),
   },
 
   recovery: {
@@ -194,6 +206,10 @@ export async function onDocumentUpdated(
   cb: (u: DocumentUpdate) => void,
 ): Promise<UnlistenFn> {
   return listen<DocumentUpdate>(EV_DOC_UPDATED, (e) => cb(e.payload));
+}
+
+export async function onDocumentSaved(cb: (event: { docId: string }) => void): Promise<UnlistenFn> {
+  return listen<{ docId: string }>(EV_DOC_SAVED, (event) => cb(event.payload));
 }
 
 export async function onDocumentChangedOnDisk(
@@ -245,5 +261,19 @@ export async function openNewWindow(): Promise<WebviewWindow> {
     title: "Markdown Viewer",
     width: 1100,
     height: 750,
+  });
+}
+
+export function onDraftChanged(cb: (event: { docId: string; lease: DraftLease | null }) => void): Promise<UnlistenFn> {
+  return listen<{ docId: string; lease: DraftLease | null }>("draft-changed", (event) => cb(event.payload));
+}
+
+/** Explicit development entry; normal Visual mode stays gated until M3V passes. */
+export async function openVisualPrototype(docId: string): Promise<WebviewWindow> {
+  if (import.meta.env.VITE_M3V_VISUAL_PROTOTYPE !== "1") throw new Error("Visual prototype is not enabled in this build");
+  const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  return new WebviewWindow(`visual-${crypto.randomUUID()}`, {
+    title: "M3V Visual prototype", width: 1000, height: 750,
+    url: `index.html?m3vDocument=${encodeURIComponent(docId)}`,
   });
 }

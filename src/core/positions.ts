@@ -176,3 +176,16 @@ export function changesToByteOps(
   }
   return ops;
 }
+
+/** Reject JS text that UTF-8 encoding would silently replace with U+FFFD. */
+export function assertWellFormedText(text: string): void {
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdfff) {
+      if (code > 0xdbff || !splitsPair(text, i + 1)) {
+        throw new Error("unpaired source surrogate");
+      }
+      i++;
+    }
+  }
+}

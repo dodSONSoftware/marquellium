@@ -25,7 +25,7 @@ hex = "0.4"
 notify = "8"
 walkdir = "2"
 rfd = "0.15"
-tokio = { version = "1", features = ["sync", "time", "rt", "macros"] }
+tokio = { version = "1", features = ["sync", "time", "rt", "macros", "process", "io-util"] }
 open = "5.3.0"
 tauri-plugin-clipboard-manager = "2.3.2"
 

@@ -1,0 +1,13 @@
+.visual-surface { overflow: auto; padding: 1.5rem; }
+.visual-block { padding: 0.5rem 0; border-bottom: 1px solid var(--border, #8884); }
+.visual-text { font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 1px dashed #8886; padding: 0; max-width: 100%; }
+.visual-text:focus { outline: 2px solid var(--accent, #58a6ff); }
+.visual-link { color: var(--accent, #58a6ff); text-decoration: underline; }
+.visual-surface table { border-collapse: collapse; }
+.visual-surface td, .visual-surface th { border: 1px solid #8886; padding: 0.4rem; }
+.visual-surface [aria-label="Draft Markdown"] { min-height: 7rem; border: 1px solid #8886; }
+.diagram-preview { max-width: 100%; max-height: 40rem; background: white; }
+.protected-label { font-size: 0.8rem; opacity: 0.7; }
+.prototype-app { height: 100vh; display: flex; flex-direction: column; }
+.prototype-toolbar { display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem; }
+.prototype-app > .visual-surface { flex: 1; min-height: 0; }

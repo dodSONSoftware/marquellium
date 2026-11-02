@@ -1,0 +1,50 @@
+[
+  {
+    "name": "CRLF heading rename",
+    "input": "edit-preserving/crlf-input.md",
+    "expected": "edit-preserving/crlf-expected.md",
+    "blockType": "heading",
+    "original": "Edit Me",
+    "replacement": "Edited"
+  },
+  {
+    "name": "BOM paragraph edit",
+    "input": "edit-preserving/bom-input.md",
+    "expected": "edit-preserving/bom-expected.md",
+    "blockType": "paragraph",
+    "original": "First paragraph.",
+    "replacement": "First paragraph CHANGED."
+  },
+  {
+    "name": "mixed line endings paragraph edit",
+    "input": "edit-preserving/mixed-input.md",
+    "expected": "edit-preserving/mixed-expected.md",
+    "blockType": "paragraph",
+    "original": "lf-line ends with LF.",
+    "replacement": "lf-line ends with LF. CHANGED"
+  },
+  {
+    "name": "final line edit without final newline",
+    "input": "edit-preserving/no-trailing-input.md",
+    "expected": "edit-preserving/no-trailing-expected.md",
+    "blockType": "paragraph",
+    "original": "Last line here",
+    "replacement": "Last line here CHANGED"
+  },
+  {
+    "name": "Visual text preserves BOM CRLF delimiters and protected neighbors",
+    "input": "m3v/direct-input.md",
+    "expected": "m3v/direct-expected.md",
+    "blockType": "paragraph",
+    "original": "bold",
+    "replacement": "bolder"
+  },
+  {
+    "name": "Visual table pipe preserves alignment spacing and escaped neighbors",
+    "input": "m3v/table-input.md",
+    "expected": "m3v/table-expected.md",
+    "blockType": "table",
+    "original": "plain",
+    "replacement": "x\\|y"
+  }
+]

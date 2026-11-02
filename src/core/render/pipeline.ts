@@ -15,12 +15,11 @@
  *    so golden output is a faithful record of what the policy must handle.
  */
 import rehypeStringify from "rehype-stringify";
-import remarkFrontmatter from "remark-frontmatter";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
+
+import { createMarkdownParser, markdownSyntaxPlugins } from "./parser";
 
 import { extractOutline, type OutlineItem } from "./outline";
 import { classifyUrl, safeUrl } from "./url-policy";
@@ -306,11 +305,7 @@ export function urlPolicyPlugin(docPath: string | null): Plugin {
 // ---------------------------------------------------------------------------
 
 export function createProcessor(docPath: string | null = null) {
-  return unified()
-    .use(remarkParse as never)
-    .use(remarkGfm as never)
-    .use(remarkMath as never)
-    .use(remarkFrontmatter as never)
+  return createMarkdownParser()
     .use(stripFrontmatter as never)
     .use(rawHtmlToCode as never)
     .use(mathToSource as never)
@@ -349,9 +344,7 @@ export function createMdast(markdown: string): MNode {
  * Node pipeline cannot drift (ADR-003: one pipeline, three consumers).
  */
 export const readerRemarkPlugins = [
-  remarkGfm,
-  remarkMath,
-  remarkFrontmatter,
+  ...markdownSyntaxPlugins,
   stripFrontmatter,
   rawHtmlToCode,
   mathToSource,

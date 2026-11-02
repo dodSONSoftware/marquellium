@@ -1,3 +1,4 @@
+import { openVisualPrototype } from "../services/native";
 import { subscriptionScope } from "../services/subscription-scope";
 /**
  * M1 shell: tabs, native menus, multiple windows, new/open/save/save-as,
@@ -53,6 +54,7 @@ import {
   openNewWindow,
   onDocumentChangedOnDisk,
   onDocumentUpdated,
+  onDocumentSaved,
   onDragDrop,
   onMenuCommand,
   onWindowCloseRequested,
@@ -455,6 +457,9 @@ export function App() {
     if (!isTauri()) return;
     const subscriptions = subscriptionScope((err) => flash(`Native event registration failed: ${err}`));
     subscriptions.add(onDocumentUpdated((u) => store.applyUpdate(u)));
+    subscriptions.add(onDocumentSaved(({ docId }) => {
+      void store.refreshSavedDocument(docId).catch((error) => flash(`Save status refresh failed: ${error}`));
+    }));
     subscriptions.add(onDocumentChangedOnDisk((e) => {
       if (e.autoReload && !store.isDirty(e.docId)) {
         void store
@@ -1092,6 +1097,7 @@ export function App() {
         >
           + Window
         </button>
+        {import.meta.env.VITE_M3V_VISUAL_PROTOTYPE === "1" && <button disabled={!activeId} onClick={() => activeId && void openVisualPrototype(activeId).catch((error) => flash(String(error)))}>M3V prototype</button>}
         <span className="toolbar-spacer" />
         <button
           className="icon-btn"
