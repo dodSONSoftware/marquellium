@@ -30,3 +30,6 @@ coverage/
 .idea/
 .vscode/
 *.swp
+
+# Retain milestone validation evidence; other local logs remain ignored.
+!docs/validation/**/*.log

@@ -88,7 +88,10 @@ pub fn disk_revision(path: &Path) -> Result<DiskRevision, std::io::Error> {
 }
 
 /// Revision of a byte buffer, with mtime taken from `path`.
-pub fn disk_revision_bytes_with_mtime(bytes: &[u8], path: &Path) -> Result<DiskRevision, std::io::Error> {
+pub fn disk_revision_bytes_with_mtime(
+    bytes: &[u8],
+    path: &Path,
+) -> Result<DiskRevision, std::io::Error> {
     disk_revision_bytes(bytes).with_mtime(path)
 }
 
@@ -119,8 +122,6 @@ impl RevisionNoMtime {
 }
 
 #[allow(dead_code)] // part of the intended watcher-correlation API (M4)
-
-
 #[derive(Debug, Clone)]
 pub(crate) struct RevisionNoMtime {
     pub(crate) size_bytes: u64,
@@ -136,7 +137,8 @@ pub fn open_document(
     path: &Path,
     convert_latin1: bool,
 ) -> Result<(String, bool, NewlinePolicy, DiskRevision), OpenError> {
-    let meta = std::fs::metadata(path).map_err(|_| OpenError::NotAFile(path.display().to_string()))?;
+    let meta =
+        std::fs::metadata(path).map_err(|_| OpenError::NotAFile(path.display().to_string()))?;
     if !meta.is_file() {
         return Err(OpenError::NotAFile(path.display().to_string()));
     }
@@ -156,10 +158,7 @@ pub fn open_document(
                 (String::from_utf8(bytes).unwrap(), false)
             }
         }
-        Err(_) if convert_latin1 => (
-            bytes.iter().map(|&b| b as char).collect(),
-            false,
-        ),
+        Err(_) if convert_latin1 => (bytes.iter().map(|&b| b as char).collect(), false),
         Err(_) => return Err(OpenError::InvalidUtf8(size)),
     };
 
@@ -213,13 +212,16 @@ pub fn save_atomic(
     bytes: &[u8],
     expected: Option<&DiskRevision>,
 ) -> Result<DiskRevision, SaveError> {
-
     let current = disk_revision(path)?;
     save_atomic_checked(path, bytes, Some(expected.unwrap_or(&current)), || {})
 }
 
 /// Explicit Save As may create a new target; ordinary Save requires one.
-pub fn save_as_atomic(path: &Path, bytes: &[u8], expected: Option<&DiskRevision>) -> Result<DiskRevision, SaveError> {
+pub fn save_as_atomic(
+    path: &Path,
+    bytes: &[u8],
+    expected: Option<&DiskRevision>,
+) -> Result<DiskRevision, SaveError> {
     save_atomic_checked(path, bytes, expected, || {})
 }
 

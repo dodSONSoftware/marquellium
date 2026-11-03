@@ -1,0 +1,61 @@
+Two disposable process-scoped sandbox launches did not register an accessible macOS application window. Computer Use and the authorized System Events lookup could not find the bundle. The IP-denial curl control failed to connect. The process sample below shows an AppKit event loop; this is inconclusive for offline app acceptance. Only the test processes were terminated. No global network setting was changed.
+
+Analysis of sampling markdown-viewer (pid 79404) every 1 millisecond
+Process:         markdown-viewer [79404]
+Path:            /Users/USER/Documents/*/Marquellium.app/Contents/MacOS/markdown-viewer
+Load Address:    0x100a90000
+Identifier:      com.markdownviewer.desktop
+Version:         0.1.0 (0.1.0)
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  codex [9841]
+Target Type:     live task
+
+Date/Time:       2026-11-02 18:00:39.448 -0600
+Launch Time:     2026-11-02 17:59:30.448 -0600
+OS Version:      macOS 27.2 (26B123)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         47.4M
+Physical footprint (peak):  52.1M
+Idle exit:                  untracked
+----
+
+Call graph:
+    873 Thread_17122006   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 873 start  (in dyld) + 6652  [0x183314d7c]
+    +   873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x11c0  [0x100a911c0]
+    +     873 ???  (in markdown-viewer)  load address 0x100a90000 + 0xe8c  [0x100a90e8c]
+    +       873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x1ff53c  [0x100c8f53c]
+    +         873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x1d4464  [0x100c64464]
+    +           873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x1d44c8  [0x100c644c8]
+    +             873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x1d2a0c  [0x100c62a0c]
+    +               873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x1cf1a8  [0x100c5f1a8]
+    +                 873 ???  (in markdown-viewer)  load address 0x100a90000 + 0x22222c  [0x100cb222c]
+    +                   873 -[NSApplication run]  (in AppKit) + 396  [0x18d24a920]
+    +                     873 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 344  [0x18d9ee0e8]
+    +                       873 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 832  [0x18d9ee5f8]
+    +                         873 _DPSNextEvent  (in AppKit) + 576  [0x18d25759c]
+    +                           873 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 292  [0x18d5988c0]
+    +                             873 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x191eeddb8]
+    +                               873 ReceiveNextEventCommon  (in HIToolbox) + 492  [0x191d6796c]
+    +                                 873 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x191d645e0]
+    +                                   873 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 536  [0x187686c10]
+    +                                     873 __CFRunLoopRun  (in CoreFoundation) + 1172  [0x1875ac310]
+    +                                       873 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x1875adac8]
+    +                                         873 mach_msg  (in libsystem_kernel.dylib) + 24  [0x1833a3fac]
+    +                                           873 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1833aca28]
+    +                                             873 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1833b68e0]
+    +                                               873 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x1833a3c20]
+    873 Thread_17122084: com.apple.NSEventThread
+    + 873 thread_start  (in libsystem_pthread.dylib) + 8  [0x1833e3cd0]
+    +   873 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x1833e8ce4]
+    +     873 _NSEventThread  (in AppKit) + 152  [0x18d37b554]
+    +       873 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 536  [0x187686c10]
+    +         873 __CFRunLoopRun  (in CoreFoundation) + 1172  [0x1875ac310]
+    +           873 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x1875adac8]
+    +             873 mach_msg  (in libsystem_kernel.dylib) + 24  [0x1833a3fac]
+    +               873 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1833aca28]
+    +                 873 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1833b68e0]
+    +                   873 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x1833a3c20]

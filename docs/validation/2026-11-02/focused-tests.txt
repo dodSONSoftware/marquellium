@@ -1,0 +1,10 @@
+$ vitest run src/tests/fixtures/mode-cycle.test.tsx src/features/editor/SourceEditor.test.tsx src/features/reader/navigation.test.ts
+
+ RUN  v5.0.5 /Users/randydodson/Documents/_code/markdown_viewer
+
+
+ Test Files  3 passed (3)
+      Tests  38 passed (38)
+   Start at  12:44:48
+   Duration  4.38s (tests 82%, environment 12%, import 5%, transform 1%)
+

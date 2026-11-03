@@ -1,0 +1,26 @@
+PASS cold CLI open with spaces and Unicode
+PASS relative local image loads
+PASS KaTeX renders in native webview
+PASS Mermaid renders in native webview
+PASS second native window shares canonical document
+
+(markdown-viewer:26288): dbind-WARNING **: 02:22:25.816: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS second process hands relative path to focused window
+PASS file opening leaves other window tabs alone
+PASS explicit table draft opens
+
+(markdown-viewer:26443): dbind-WARNING **: 02:22:26.379: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS incoming file request uses draft navigation coordinator
+PASS Cancel retains draft and offers explicit request retry
+PASS dismissal preserves draft and document
+
+(markdown-viewer:26484): dbind-WARNING **: 02:22:26.459: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS installed desktop Open With forwards spaces and Unicode
+Traceback (most recent call last):
+  File "/work/scripts/acceptance/m6-webdriver.py", line 132, in <module>
+    check("native Ctrl+Q coordinates both windows before closing", lambda: script("return document.body.innerText.includes('Resolve unapplied draft')") and len(command("GET", "/window/handles")) == 2)
+  File "/work/scripts/acceptance/m6-webdriver.py", line 62, in check
+    until(predicate)
+  File "/work/scripts/acceptance/m6-webdriver.py", line 59, in until
+    raise AssertionError("Timed out waiting for native UI")
+AssertionError: Timed out waiting for native UI

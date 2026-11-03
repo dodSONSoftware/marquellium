@@ -1,0 +1,14 @@
+{
+  "htmlStaticAndEmbedded": true,
+  "docxZipCrcXmlContentAndPng": true,
+  "pdfExpectedTextAndNoControls": true,
+  "pdfPages": 3,
+  "sourceAndOriginalImageUnchanged": true,
+  "sha256": {
+    "export-fixture.md": "3c24b05b99c334890282d22c5a0838285bb0773a4af0052508352db3dd450ee7",
+    "assets/diagram.png": "2b1da20a14b97d8f01f0a809d9f7d53eeefc59df6312eaa5a0c8b5c1228d1d7f",
+    "export-fixture-accepted.html": "8848c8444d178705c6ebaf52f5623465039832f99d7387b69637de79f9ec1a3f",
+    "export-fixture-accepted.docx": "2909c091604975140eac037f4a6c18910de6b0a476bc8bc55132f86bcb15cf04",
+    "export-fixture-accepted.pdf": "21fdc7f3da985239b218976c331721a8076c4bb9f77827c6880f5be8b79e1de3"
+  }
+}

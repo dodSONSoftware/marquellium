@@ -1,0 +1,8 @@
+{
+  "src-tauri/src/macos_termination.rs": "c6cad9336bdf5117bb24f807cebfce07c528ec3fccf3e9b297c6006d547b26b6",
+  "src-tauri/src/lifecycle.rs": "073337a9ade4e54b78aad7b85270deaf1648899b420947e990aa570b4058da48",
+  "src-tauri/src/lib.rs": "ec37a438fa363e470529cb8b8c42632d480442260be91646a398cf3dd64ccbc4",
+  "src-tauri/Cargo.toml": "d2a4d6a32d6c773c9feb2906af8b12a0fc28c2f943cc2db2ebb6c229d65f8fde",
+  "src-tauri/Cargo.lock": "3027460d89b0435bee93892c65adb4d6d07e3300c4866814e6f8a1296abb78e9",
+  "src-tauri/target/release/bundle/macos/Marquellium.app/Contents/MacOS/markdown-viewer": "59b21c242273e943e3e095cdb4870e6aede4da17959fd26dd25176a202c3646c"
+}

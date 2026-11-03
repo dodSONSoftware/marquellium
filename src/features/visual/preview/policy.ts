@@ -16,11 +16,11 @@ export function validateSourcePreview(text: string): void {
 export function checkMermaidBody(text: string): void {
   checkSize(text);
   if (!/^\s*(?:flowchart\s+(?:TD|TB|BT|LR|RL)\b|graph\s+(?:TD|TB|BT|LR|RL)\b|sequenceDiagram\b|classDiagram\b)/.test(text)) {
-    throw new Error("prototype preview supports flowchart, sequence and class diagrams");
+    throw new Error("Mermaid preview supports flowchart, sequence and class diagrams");
   }
   // Never let document text supply configuration, callbacks, CSS, assets or URLs.
   if (/%%\{|^\s*---|\b(?:click|classDef|style|linkStyle)\b|(?:https?|data|file|javascript):|url\s*\(|<|>|@\s*\{/im.test(text.replace(/-->>|->>|-->|<\|--|--\|>|<--|->|<-/g, ""))) {
-    throw new Error("diagram configuration, HTML, callbacks, styles and external resources are disabled in the prototype");
+    throw new Error("diagram configuration, HTML, callbacks, styles and external resources are disabled in Mermaid previews");
   }
 }
 
@@ -53,4 +53,18 @@ export function validateTable(text: string): void {
   if (!columns || columns > 20 || rows.length > 100 || rows.some((row) => row.children.length !== columns)) {
     throw new Error("table rows must have matching cells (maximum 100 rows / 20 columns)");
   }
+}
+
+/** A draft may not remove its math fence and capture neighboring source. */
+export function mathBody(text: string): string {
+  checkSize(text);
+  const lines = text.split(/\r\n|\r|\n/);
+  const opening = /^ {0,3}(\${2,})[ \t]*$/.exec(lines[0] ?? "");
+  if (!opening) throw new Error("Expected a display math fence");
+  const closing = new RegExp(`^ {0,3}\\$\{${opening[1]!.length},}[ \\t]*$`);
+  let end = lines.length - 1;
+  while (end > 0 && lines[end] === "") end--;
+  if (end < 2 || !closing.test(lines[end]!)) throw new Error("Math fence is incomplete");
+  if (lines.slice(1, end).some((line) => closing.test(line))) throw new Error("Draft escapes its original math block");
+  return lines.slice(1, end).join("\n");
 }

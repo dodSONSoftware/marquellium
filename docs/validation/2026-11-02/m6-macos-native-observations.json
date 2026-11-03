@@ -1,0 +1,22 @@
+{
+  "kind": "native UI observations through Computer Use, not an automated stdout test log",
+  "application": "Marquellium.app",
+  "data": "/private/tmp/marquellium-m6-macos",
+  "checks": [
+    "cold CLI open of notes 東京.md",
+    "relative-path second process opens second note.md in focused second window",
+    "original window retains only notes 東京.md",
+    "modified table draft displays 11 while source file remains 10",
+    "incoming file opens Resolve unapplied draft",
+    "Cancel preserves draft and presents Retry opening / Dismiss request",
+    "Dismiss leaves draft 11 intact",
+    "draft Cancel restores canonical 10",
+    "macOS open -a candidate os open.md creates targeted tab with M6 OS event",
+    "local file URI with percent-encoded spaces and Unicode opens notes 東京.md",
+    "Command-Q closes clean native session"
+  ],
+  "limits": [
+    "No native Windows acceptance",
+    "No new macOS signing or install acceptance"
+  ]
+}

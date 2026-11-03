@@ -60,8 +60,16 @@ fn roundtrip_byte_identical_unmodified() {
 
         // Save unmodified content.
         let out = save_atomic(&dest, &bytes, Some(&rev)).unwrap();
-        assert_eq!(std::fs::read(&dest).unwrap(), original, "{name}: save changed bytes");
-        assert_eq!(disk_revision(&dest).unwrap(), out, "{name}: post-save revision");
+        assert_eq!(
+            std::fs::read(&dest).unwrap(),
+            original,
+            "{name}: save changed bytes"
+        );
+        assert_eq!(
+            disk_revision(&dest).unwrap(),
+            out,
+            "{name}: post-save revision"
+        );
     }
 }
 
@@ -83,8 +91,14 @@ fn bom_is_stripped_and_flagged() {
     let src = fixtures().join("markdown/roundtrip/bom.md");
     let (content, bom, _, _) = open_document(&src, false).unwrap();
     assert!(bom, "BOM should be detected");
-    assert!(!content.starts_with('\u{feff}'), "BOM should be stripped from content");
-    assert!(content.starts_with('#'), "content starts at real first char");
+    assert!(
+        !content.starts_with('\u{feff}'),
+        "BOM should be stripped from content"
+    );
+    assert!(
+        content.starts_with('#'),
+        "content starts at real first char"
+    );
 }
 
 #[test]
@@ -118,7 +132,10 @@ fn stale_save_is_rejected_and_original_intact() {
 
     // Our save still carries the old expected revision => conflict.
     let res = save_atomic(&p, &bytes, Some(&rev));
-    assert!(matches!(res, Err(SaveError::Conflict(_))), "expected conflict");
+    assert!(
+        matches!(res, Err(SaveError::Conflict(_))),
+        "expected conflict"
+    );
     // Original (external) content must be untouched.
     assert_eq!(std::fs::read_to_string(&p).unwrap(), "externally changed\n");
 }
@@ -233,8 +250,15 @@ fn stale_revision_is_rejected() {
             ops: vec![op(1, 1, "b")],
         },
     );
-    assert!(matches!(res, Err(crate::documents::ApplyError::StaleRevision { .. })));
-    assert_eq!(reg.snapshot(&id).unwrap().content, "a", "failed tx must not mutate");
+    assert!(matches!(
+        res,
+        Err(crate::documents::ApplyError::StaleRevision { .. })
+    ));
+    assert_eq!(
+        reg.snapshot(&id).unwrap().content,
+        "a",
+        "failed tx must not mutate"
+    );
 }
 
 #[test]
@@ -287,16 +311,17 @@ fn overlapping_ops_are_rejected() {
             ops: vec![op(0, 3, "a"), op(2, 5, "b")], // overlap [2,3)
         },
     );
-    assert!(matches!(res, Err(crate::documents::ApplyError::InvalidOp(_))));
+    assert!(matches!(
+        res,
+        Err(crate::documents::ApplyError::InvalidOp(_))
+    ));
 }
 
 #[test]
 fn undo_redo_are_single_groups_and_shared() {
     let reg = DocumentRegistry::new();
     let id = reg.create_untitled();
-    let base = |reg: &DocumentRegistry, id: &str| {
-        reg.snapshot(id).unwrap().revision
-    };
+    let base = |reg: &DocumentRegistry, id: &str| reg.snapshot(id).unwrap().revision;
 
     // Edit 1: insert "ab"
     reg.apply_transaction(
@@ -339,9 +364,7 @@ fn undo_back_to_saved_state_clears_dirty() {
     std::fs::write(&p, "start\n").unwrap();
     let (content, bom, newline, rev) = open_document(&p, false).unwrap();
     let reg = DocumentRegistry::new();
-    let id = reg
-        .insert_opened(&p, content, bom, newline, rev)
-        .unwrap();
+    let id = reg.insert_opened(&p, content, bom, newline, rev).unwrap();
     assert!(!reg.is_dirty(&id).unwrap(), "fresh open is clean");
 
     // Edit then undo; content returns to the saved bytes => clean.
@@ -355,7 +378,10 @@ fn undo_back_to_saved_state_clears_dirty() {
     .unwrap();
     assert!(reg.is_dirty(&id).unwrap());
     reg.undo(&id).unwrap().unwrap();
-    assert!(!reg.is_dirty(&id).unwrap(), "undo to saved bytes clears dirty");
+    assert!(
+        !reg.is_dirty(&id).unwrap(),
+        "undo to saved bytes clears dirty"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -410,9 +436,7 @@ fn traversal_is_rejected() {
     std::fs::write(&inside, "x").unwrap();
     assert!(crate::workspace::resolve_in_scope(&scope, &PathBuf::from("a.md")).is_ok());
     // ../ escapes
-    assert!(
-        crate::workspace::resolve_in_scope(&scope, &PathBuf::from("../outside.md")).is_err()
-    );
+    assert!(crate::workspace::resolve_in_scope(&scope, &PathBuf::from("../outside.md")).is_err());
     assert!(crate::workspace::contains_traversal(&PathBuf::from("../x")));
 }
 
@@ -462,7 +486,10 @@ fn two_clients_cannot_diverge() {
             ops: vec![op(0, 0, "B")],
         },
     );
-    assert!(matches!(res, Err(crate::documents::ApplyError::StaleRevision { .. })));
+    assert!(matches!(
+        res,
+        Err(crate::documents::ApplyError::StaleRevision { .. })
+    ));
     assert_eq!(reg.snapshot(&id).unwrap().content, "A");
 }
 
@@ -535,17 +562,38 @@ fn undo_redo_broadcasts_replay_exact_bytes_and_current_revisions() {
     use crate::documents::registry::wire_ops;
     let reg = DocumentRegistry::new();
     let id = reg.create_untitled();
-    reg.apply_transaction(&id, &WireTransaction {
-        base_revision: 0,
-        ops: vec![DocOp { start_byte: 0, end_byte: 0, text: "a🎉bcdef".into() }],
-    }).unwrap();
-    let edit = reg.apply_transaction(&id, &WireTransaction {
-        base_revision: 1,
-        ops: vec![
-            DocOp { start_byte: 0, end_byte: 1, text: "LONG".into() },
-            DocOp { start_byte: 5, end_byte: 7, text: "X".into() },
-        ],
-    }).unwrap();
+    reg.apply_transaction(
+        &id,
+        &WireTransaction {
+            base_revision: 0,
+            ops: vec![DocOp {
+                start_byte: 0,
+                end_byte: 0,
+                text: "a🎉bcdef".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let edit = reg
+        .apply_transaction(
+            &id,
+            &WireTransaction {
+                base_revision: 1,
+                ops: vec![
+                    DocOp {
+                        start_byte: 0,
+                        end_byte: 1,
+                        text: "LONG".into(),
+                    },
+                    DocOp {
+                        start_byte: 5,
+                        end_byte: 7,
+                        text: "X".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
     let edited = reg.snapshot(&id).unwrap().content;
     let mut mirror = edited.clone();
     for expected_revision in 3..=8 {
@@ -559,7 +607,14 @@ fn undo_redo_broadcasts_replay_exact_bytes_and_current_revisions() {
             mirror.replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
         }
         assert_eq!(mirror, reg.snapshot(&id).unwrap().content);
-        assert_eq!(mirror, if expected_revision % 2 == 1 { "a🎉bcdef" } else { &edited });
+        assert_eq!(
+            mirror,
+            if expected_revision % 2 == 1 {
+                "a🎉bcdef"
+            } else {
+                &edited
+            }
+        );
     }
     assert_eq!(edit.revision, 2);
 }

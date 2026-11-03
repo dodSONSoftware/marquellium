@@ -1,4 +1,4 @@
-# Markdown Viewer & Editor — Competitive Analysis and Product Requirements
+# Marquellium — Competitive Analysis and Product Requirements
 
 **Version:** 2.0 (final product requirements; implementation handoff)  
 **Research date:** 2026-10-29  

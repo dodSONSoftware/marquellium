@@ -91,10 +91,7 @@ fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
         Some("image/jpeg")
     } else if bytes.starts_with(b"GIF8") {
         Some("image/gif")
-    } else if bytes.len() >= 12
-        && bytes.starts_with(b"RIFF")
-        && &bytes[8..12] == b"WEBP"
-    {
+    } else if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
         Some("image/webp")
     } else if bytes.starts_with(b"BM") {
         Some("image/bmp")
@@ -115,13 +112,16 @@ fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
 }
 
 /// Percent-decode a path (`%20` etc.). Invalid sequences fail closed.
-fn percent_decode(s: &str) -> Option<String> {
+pub(crate) fn percent_decode(s: &str) -> Option<String> {
     let bytes = s.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
         let b = bytes[i];
-        if b == b'%' && i + 2 < bytes.len() {
+        if b == b'%' {
+            if i + 2 >= bytes.len() {
+                return None;
+            }
             let hi = (bytes[i + 1] as char).to_digit(16)?;
             let lo = (bytes[i + 2] as char).to_digit(16)?;
             out.push((hi * 16 + lo) as u8);
@@ -142,19 +142,70 @@ fn percent_decode(s: &str) -> Option<String> {
 /// `local-media:Users/...`) is malformed and rejected, so `scope.resolve`
 /// never sees a relative path (fail closed).
 pub fn media_path_from_uri(uri: &str) -> Option<String> {
-    let rest = uri.strip_prefix("local-media:")?;
-    let rest = rest.strip_prefix("//localhost").unwrap_or(rest);
-    let path = rest.strip_prefix('/')?;
+    let path = if let Some(rest) = uri.strip_prefix("local-media:") {
+        if rest.starts_with("//") {
+            rest.strip_prefix("//localhost/")?
+        } else {
+            rest.strip_prefix('/')?
+        }
+    } else {
+        uri.strip_prefix("http://local-media.localhost/")
+            .or_else(|| uri.strip_prefix("https://local-media.localhost/"))?
+    };
     if path.is_empty() {
         return None;
     }
-    Some(format!("/{}", percent_decode(path)?))
+    let decoded = percent_decode(path)?;
+    if decoded.chars().any(char::is_control)
+        || decoded.starts_with("\\")
+        || decoded.starts_with("//")
+    {
+        return None;
+    }
+    let decoded = if decoded.as_bytes().first() == Some(&b'/') && is_drive_path(&decoded[1..]) {
+        decoded[1..].to_string()
+    } else {
+        decoded
+    };
+    Some(if decoded.starts_with('/') || is_drive_path(&decoded) {
+        decoded
+    } else {
+        format!("/{decoded}")
+    })
+}
+
+fn is_drive_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes[2], b'/' | b'\\')
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[test]
+    fn native_webview_origins_decode_windows_drive_paths_once() {
+        assert_eq!(
+            media_path_from_uri("http://local-media.localhost/C%3A%5Cnotes%5Ca%20b.png").as_deref(),
+            Some("C:\\notes\\a b.png")
+        );
+        assert_eq!(
+            media_path_from_uri("https://local-media.localhost/C%3A%2Fnotes%2Fa%2520b.png")
+                .as_deref(),
+            Some("C:/notes/a%20b.png")
+        );
+        for uri in [
+            "http://local-media.localhost.evil/C:/a.png",
+            "http://local-media.localhost:80/C:/a.png",
+            "http://local-media.localhost/%5C%5Cserver%5Ca.png",
+            "local-media://localhost/%2F%2Fserver/a.png",
+        ] {
+            assert_eq!(media_path_from_uri(uri), None);
+        }
+    }
     #[test]
     fn in_scope_image_resolves_with_sniffed_mime() {
         let dir = tempfile::tempdir().unwrap();
@@ -177,13 +228,20 @@ mod tests {
         let scope = MediaScope::default();
         scope.add_root(dir.path());
 
-        let evil = dir.path().join("../").join(outer.path().file_name().unwrap());
+        let evil = dir
+            .path()
+            .join("../")
+            .join(outer.path().file_name().unwrap());
         let err = scope.resolve(&evil.to_string_lossy()).unwrap_err();
         // `..` canonicalizes out of the scope (or the file simply isn't
         // there): either way, never served.
-        assert!(matches!(err, MediaError::OutsideScope | MediaError::NotFound));
+        assert!(matches!(
+            err,
+            MediaError::OutsideScope | MediaError::NotFound
+        ));
     }
 
+    #[cfg(unix)]
     #[test]
     fn symlink_escape_is_rejected() {
         let dir = tempfile::tempdir().unwrap();
@@ -192,14 +250,7 @@ mod tests {
         let scope = MediaScope::default();
         scope.add_root(dir.path());
         let link = dir.path().join("link.png");
-        #[cfg(unix)]
         std::os::unix::fs::symlink(outer.path().join("secret.png"), &link).unwrap();
-        #[cfg(not(unix))]
-        {
-            // Copy fallback keeps the test meaningful cross-platform.
-            std::fs::copy(outer.path().join("secret.png"), &link).unwrap();
-            return;
-        }
 
         let err = scope.resolve(&link.to_string_lossy()).unwrap_err();
         assert_eq!(err, MediaError::OutsideScope);
@@ -222,7 +273,10 @@ mod tests {
     fn malformed_requests_fail_closed() {
         let scope = MediaScope::default();
         assert_eq!(scope.resolve("").unwrap_err(), MediaError::Malformed);
-        assert_eq!(scope.resolve("relative/path").unwrap_err(), MediaError::Malformed);
+        assert_eq!(
+            scope.resolve("relative/path").unwrap_err(),
+            MediaError::Malformed
+        );
         assert_eq!(
             scope.resolve("/a\0b.png").unwrap_err(),
             MediaError::Malformed
@@ -254,6 +308,15 @@ mod tests {
             media_path_from_uri("local-media://localhost/Users/x/a.png").as_deref(),
             Some("/Users/x/a.png")
         );
+        assert_eq!(
+            media_path_from_uri("local-media://localhost/%2FUsers%2Fx%2Fa%20b.png").as_deref(),
+            Some("/Users/x/a b.png")
+        );
+        assert_eq!(
+            media_path_from_uri("local-media://evil/Users/x/a.png"),
+            None
+        );
+        assert_eq!(media_path_from_uri("local-media:/a%"), None);
         assert_eq!(media_path_from_uri("local-media:"), None);
         assert_eq!(media_path_from_uri("local-media:/a%ZZ.png"), None);
     }

@@ -1,0 +1,18 @@
+[
+  {
+    "pid": "13217",
+    "cwd": "/",
+    "environment": [
+      "MARKDOWN_VIEWER_DATA_DIR=/tmp/marquellium-m6-sj49z172/data",
+      "APPIMAGE=/tmp/marquellium.AppImage"
+    ]
+  },
+  {
+    "pid": "13461",
+    "cwd": "/",
+    "environment": [
+      "MARKDOWN_VIEWER_DATA_DIR=/tmp/marquellium-m6-sj49z172/data",
+      "APPIMAGE=/tmp/marquellium.AppImage"
+    ]
+  }
+]

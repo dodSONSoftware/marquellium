@@ -1,0 +1,22 @@
+{
+  "checks": [
+    "cold CLI open with spaces and Unicode",
+    "relative local image loads",
+    "KaTeX renders in native webview",
+    "Mermaid renders in native webview",
+    "second native window shares canonical document",
+    "second process hands relative path to focused window",
+    "file opening leaves other window tabs alone",
+    "explicit table draft opens",
+    "incoming file request uses draft navigation coordinator",
+    "Cancel retains draft and offers explicit request retry",
+    "dismissal preserves draft and document",
+    "native opening and cancellation preserve file bytes",
+    "native Quit command coordinates both windows before closing",
+    "Quit Cancel keeps both native windows and the draft",
+    "second Quit still prompts for the retained draft",
+    "discarding the disposable draft quits the native process"
+  ],
+  "workspace": "/tmp/marquellium-m6-sj49z172",
+  "binary": "/tmp/marquellium.AppImage"
+}

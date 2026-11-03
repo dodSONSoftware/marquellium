@@ -11,3 +11,11 @@
 .prototype-app { height: 100vh; display: flex; flex-direction: column; }
 .prototype-toolbar { display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem; }
 .prototype-app > .visual-surface { flex: 1; min-height: 0; }
+.visual-surface { flex: 1; min-width: 0; }
+.visual-surface textarea.visual-text { display: inline-block; min-width: 12ch; min-height: 4em; resize: vertical; vertical-align: baseline; white-space: pre-wrap; }
+.visual-surface blockquote { border-left: 3px solid var(--border); margin-left: 0; padding-left: 1rem; }
+.table-tools { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; font-size: .85rem; }
+.visual-insert button { margin: .25rem; }
+.visual-surface .reader { overflow: visible; padding: 0; }
+.math-display { display: block; overflow-x: auto; padding: .75rem 0; }
+.math-error { display: inline-flex; flex-direction: column; color: var(--muted); }

@@ -1,0 +1,13 @@
+$ vitest run
+
+ RUN  v5.0.5 /Users/randydodson/Documents/_code/markdown_viewer
+
+
+ Test Files  34 passed (34)
+      Tests  483 passed (483)
+   Start at  16:06:09
+   Duration  5.76s (tests 61%, environment 20%, import 16%, transform 3%)
+
+    Isolate  34 workers spawned · ~248ms startup each (spawn + environment, per file)
+             at least ~314ms faster with isolate: false — reuses workers across files instead of one per file
+

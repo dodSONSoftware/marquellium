@@ -1,6 +1,6 @@
-# Create or Update the Markdown Viewer Cumulative Workshop Milestone Record
+# Create or Update the Marquellium Cumulative Workshop Milestone Record
 
-**Project:** Markdown Viewer & Editor — a Tauri 2 desktop application (Rust document core + React/TypeScript webview) for opening, rendering, and editing Markdown files with byte-exact document integrity.  
+**Project:** Marquellium — a Tauri 2 desktop application (Rust document core + React/TypeScript webview) for opening, rendering, and editing Markdown files with byte-exact document integrity.
 **Purpose:** At a meaningful design, implementation, or validation checkpoint, create **one complete cumulative downloadable Markdown decision record** preserving approved requirements, proposals, rationale, implementation findings, examples, unresolved questions, and available evidence. This is a **project continuity checkpoint**, not authorization to implement a development milestone, declare a release accepted, or touch any user document on disk.
 
 **Governing principle carried into every checkpoint:** *Correctness and document integrity before editing convenience.* Do not silently weaken, defer, or remove mandatory requirements to simplify implementation.
@@ -72,7 +72,7 @@ Carry these approved boundaries forward, noting any explicit later user revision
 - **One history:** document undo/redo is the registry op log (ADR-007). Mode switches and previews add nothing to history; undo granularity is the **edit group** (a ~100 ms keystroke burst commits as ONE transaction carrying the group's net diff — per-keystroke ops are never sent raw, because the registry contract addresses them to the pre-batch buffer).
 - **Drafts are inert** (ADR-008): until Apply, a draft changes nothing canonical (content, dirty, history, file). Every exit path runs the close state machine; crash paths are covered by recovery snapshots.
 - **No silent loss:** recovery restore is opt-in and never silently overwrites disk; recovery snapshots are cleaned on successful save/explicit discard. Untitled documents are excluded from session restore — session state stores **paths and modes only, never content**, so a restore can structurally never clobber unsaved work (FR-033/FR-006).
-- **Modes:** Read/Source/Split are live; **Visual is gated behind M3V** (the mandatory fidelity prototype). Default mode is Source until M3V passes; the FR-042 flip to Visual is a tracked M3V exit item, not a requirement change.
+- **Modes:** M3V acceptance passed before M4. Normal builds now expose Read/Source/Split/Visual; fresh default is Visual while explicit saved Source/session preferences remain. See `docs/m4-results.md` for the M4 evidence and resource/fallback boundaries.
 - **Safe rendering:** raw HTML escaped by construction, single source of URL policy, local media served only through the scoped `local-media:` protocol (scope-check + magic-byte sniff, fail closed); no network at render time.
 - **Session/recents:** schema-versioned JSON in app data, atomic writes, corrupt files quarantined, normalized on read/write; recent entries omit unavailable files gracefully.
 - **Milestone discipline:** complete each milestone's acceptance criteria and automated tests before proceeding (PRD §11 gates). M3V is a **mandatory gate**: if it fails, stop and document an alternative architecture rather than silently degrading the requirements.
@@ -100,7 +100,7 @@ Record implementation and acceptance separately for each milestone. Source avail
 Preserve the approved **future** design without claiming implementation:
 
 - **M3V:** representative source-range mapping; localized changes with protected unknown constructs; cross-mode undo continuity; table and Mermaid inline draft lifecycle proof. Gate: switch-without-edit is byte-for-byte stable, edited elements do not rewrite unrelated source, and transition/draft tests pass. **Failure ⇒ stop and document an alternative architecture.**
-- **M4:** complete Visual mode for supported blocks; Mermaid/math inline editors; editable tables with helpers (insert, add/remove row/col, alignment, escaped pipes); frontmatter display; scroll-sync refinements; folder tree/workspace; link validation; image paste; command palette.
+- **M4:** complete Visual mode for supported blocks; Mermaid/math inline editors; editable tables with helpers (insert, add/remove row/col, alignment, escaped pipes); frontmatter display; scroll-sync refinements; folder tree/workspace and saved-file search; link validation; image paste; command palette.
 - **M5:** HTML/PDF/DOCX export (ADR-009 feasibility); native spell check with enable/disable preference; full settings UI; accessibility; signed macOS distribution; documented NFR benchmarks (95th-pct input handling ≤ 16 ms on 1 MB; launch/open budgets).
 - **M6:** Windows/Linux installers, file-association and OS Open With / CLI file-open behavior per platform; system webview parity (note: HTML5 in-app drag and native file-drop interplay differs per webview; the macOS drag-drop path uses Tauri core `tauri://drag-drop` with real filesystem paths).
 
@@ -142,9 +142,9 @@ Never infer byte fidelity from text-level round-trips, editor behavior from core
 ## 9. Required output structure
 
 ```markdown
-# Markdown Viewer & Editor — Cumulative Workshop Decision Record
+# Marquellium — Cumulative Workshop Decision Record
 
-- Project: Markdown Viewer & Editor
+- Project: Marquellium
 - Workshop scope: <current and cumulative scope>
 - Record revision: <1, 2, 3 ...>
 - Checkpoint ID: <MDV-001, MDV-002 ...>

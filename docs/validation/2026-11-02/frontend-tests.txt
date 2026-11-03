@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v5.0.5 /Users/randydodson/Documents/_code/markdown_viewer
+
+
+ Test Files  26 passed (26)
+      Tests  448 passed (448)
+   Start at  12:45:38
+   Duration  5.96s (tests 65%, import 17%, environment 15%, transform 3%)
+

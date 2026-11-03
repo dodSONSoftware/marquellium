@@ -38,7 +38,7 @@ export type Byte = { readonly __brand: "byte"; readonly value: number }; // UTF-
 ### Surrogates / graphemes
 
 - Editing APIs accept only `U16` positions that do not split surrogate pairs; validation is in `positions.ts` and unit-tested against the `fixtures/markdown/unicode.md` corpus (emoji ZWJ, combining marks, surrogate pairs).
-- Selection/replace operations in the core are always whole-code-unit; grapheme-level concerns (e.g. a selection ending mid-ZWJ sequence) are *allowed to pass through* (byte-faithful) — we never split a code point, but we do not claim grapheme intelligence in v1 (documented).
+- Source operations retain code-point-safe, byte-faithful coordinates. M3V localized Visual transactions additionally reject replacement boundaries inside a grapheme (including combining marks and ZWJ sequences), matching the stricter PRD edit-safety requirement. This validation does not normalize text or change the coordinate system; unsafe Visual edits fail closed. This M3V clarification supersedes the original blanket allowance for mid-grapheme core edits.
 
 ### File-size guard
 

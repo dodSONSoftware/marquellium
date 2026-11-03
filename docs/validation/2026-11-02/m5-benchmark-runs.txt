@@ -1,0 +1,45 @@
+Run 1/30: open 1069.0 ms, launch 1258.3 ms
+Run 2/30: open 975.9 ms, launch 981.1 ms
+Run 3/30: open 991.6 ms, launch 997.7 ms
+Run 4/30: open 956.4 ms, launch 962.5 ms
+Run 5/30: open 966.8 ms, launch 972.5 ms
+Run 6/30: open 958.5 ms, launch 964.0 ms
+Run 7/30: open 947.6 ms, launch 953.0 ms
+Run 8/30: open 949.7 ms, launch 955.7 ms
+Run 9/30: open 967.7 ms, launch 973.3 ms
+Run 10/30: open 940.8 ms, launch 946.5 ms
+Run 11/30: open 930.9 ms, launch 936.8 ms
+Run 12/30: open 968.7 ms, launch 974.6 ms
+Run 13/30: open 947.2 ms, launch 953.2 ms
+Run 14/30: open 951.3 ms, launch 956.7 ms
+Run 15/30: open 941.5 ms, launch 947.8 ms
+Run 16/30: open 952.3 ms, launch 958.0 ms
+Run 17/30: open 952.9 ms, launch 958.9 ms
+Run 18/30: open 946.3 ms, launch 951.4 ms
+Run 19/30: open 952.7 ms, launch 958.5 ms
+Run 20/30: open 951.5 ms, launch 957.7 ms
+Run 21/30: open 951.9 ms, launch 958.1 ms
+Run 22/30: open 955.5 ms, launch 960.7 ms
+Run 23/30: open 960.4 ms, launch 966.6 ms
+Run 24/30: open 948.8 ms, launch 954.9 ms
+Run 25/30: open 945.9 ms, launch 951.8 ms
+Run 26/30: open 957.8 ms, launch 963.4 ms
+Run 27/30: open 953.9 ms, launch 959.1 ms
+Run 28/30: open 954.0 ms, launch 961.5 ms
+Run 29/30: open 944.3 ms, launch 949.9 ms
+Run 30/30: open 961.0 ms, launch 966.7 ms
+{
+  "binarySha256": "bd9da0d8658cc45e2722ecc19b138578da70769deff8fe4a2531213854f794e3",
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "hardware": "arm64",
+  "runs": 30,
+  "cache": "Fresh process each run; OS caches warm after first run; no cache purge",
+  "launchBoundary": "Popen through native ready message after restored Split content and two animation frames",
+  "openBoundary": "Native run() entry through the same ready message; includes launch/restore, excludes dynamic loader",
+  "fixtureBytes": 1049836,
+  "sourceUnchanged": true,
+  "launchToUsableP95Ms": 997.7014580000008,
+  "openP95Ms": 991.573834,
+  "inputP95Ms": 3,
+  "artifactDirectory": "/private/tmp/marquellium-m5-bench-gfbmwl10"
+}

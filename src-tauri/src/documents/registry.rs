@@ -20,10 +20,10 @@ mod persistence;
 pub use drafts::{DraftKind, DraftLease, DraftOpening, DraftUpdate};
 
 /// Canonical document identifier: the path string for saved documents,
-/// `untitled-<n>` for new documents.
+/// a session-unique untitled identifier for new documents.
 pub type DocId = String;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NewlinePolicy {
     /// Dominant ending was LF.
@@ -87,6 +87,7 @@ pub struct DocEntry {
     /// Last observed disk revision (watcher or save).
     pub disk_revision: Option<DiskRevision>,
     pub dirty: bool,
+    pub recovery_conflicted: bool,
     /// How many window views currently show this document (AT-117).
     pub views: u32,
     /// Set while an inline source draft session is open (ADR-008).
@@ -173,7 +174,15 @@ impl DocumentRegistry {
     pub fn create_untitled(&self) -> DocId {
         let mut inner = self.lock();
         inner.untitled_counter += 1;
-        let id = format!("untitled-{}", inner.untitled_counter);
+        let id = format!(
+            "untitled-{}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+            inner.untitled_counter
+        );
         let entry = DocEntry {
             path: None,
             content: String::new(),
@@ -183,6 +192,7 @@ impl DocumentRegistry {
             saved_revision: None,
             disk_revision: None,
             dirty: true,
+            recovery_conflicted: false,
             views: 0,
             draft: None,
             undo: Vec::new(),
@@ -217,6 +227,7 @@ impl DocumentRegistry {
                 saved_revision: Some(disk_revision.clone()),
                 disk_revision: Some(disk_revision),
                 dirty: false,
+                recovery_conflicted: false,
                 views: 0,
                 draft: None,
                 undo: Vec::new(),
@@ -240,28 +251,48 @@ impl DocumentRegistry {
     pub fn snapshot(&self, id: &str) -> Option<DocumentSnapshot> {
         let inner = self.lock();
         let e = inner.docs.get(id)?;
-        Some(DocumentSnapshot {
+        Some(Self::entry_snapshot(id, e))
+    }
+
+    fn entry_snapshot(id: &str, e: &DocEntry) -> DocumentSnapshot {
+        DocumentSnapshot {
             doc_id: id.to_string(),
             path: e.path.as_ref().map(|p| p.to_string_lossy().into_owned()),
             content: e.content.clone(),
             bom: e.bom,
             newline: e.newline,
             revision: e.revision,
-            saved_content_hash: e
-                .saved_revision
-                .as_ref()
-                .map(|r| r.content_hash.clone()),
+            saved_content_hash: e.saved_revision.as_ref().map(|r| r.content_hash.clone()),
             saved_disk_revision: e.saved_revision.clone(),
             disk_revision: e.disk_revision.clone(),
             dirty: e.is_dirty(),
             draft_active: e.draft.as_ref().map(|draft| draft.token.clone()),
-        })
+        }
+    }
+
+    pub fn recovery_state(&self, id: &str) -> Option<(DocumentSnapshot, Option<DraftLease>, bool)> {
+        let inner = self.lock();
+        let entry = inner.docs.get(id)?;
+        Some((
+            Self::entry_snapshot(id, entry),
+            entry.draft.clone(),
+            entry.recovery_conflicted,
+        ))
+    }
+
+    pub fn mark_recovery_conflicted(&self, id: &str) {
+        if let Some(entry) = self.lock().docs.get_mut(id) {
+            entry.recovery_conflicted = true;
+        }
     }
 
     /// View bookkeeping for multi-window ownership (AT-117).
     pub fn acquire_view(&self, id: &str) -> Result<u32, String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         e.views += 1;
         Ok(e.views)
     }
@@ -269,7 +300,10 @@ impl DocumentRegistry {
     /// Returns true when the last view was released.
     pub fn release_view(&self, id: &str) -> Result<u32, String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         if e.views == 0 {
             return Err(format!("no views to release for {id}"));
         }
@@ -282,9 +316,16 @@ impl DocumentRegistry {
     }
 
     /// Record a successful save (service::save_atomic succeeded).
-    pub fn mark_saved(&self, id: &str, rev: crate::documents::service::DiskRevision) -> Result<(), String> {
+    pub fn mark_saved(
+        &self,
+        id: &str,
+        rev: crate::documents::service::DiskRevision,
+    ) -> Result<(), String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         e.saved_revision = Some(rev.clone());
         e.disk_revision = Some(rev);
         e.dirty = false;
@@ -294,7 +335,10 @@ impl DocumentRegistry {
     /// Update the BOM/newline flags (used by confirmed reloads).
     pub fn set_meta(&self, id: &str, bom: bool, newline: NewlinePolicy) -> Result<(), String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         e.bom = bom;
         e.newline = newline;
         Ok(())
@@ -303,7 +347,10 @@ impl DocumentRegistry {
     /// Repoint a document at a new path (save-as).
     pub fn rename_document(&self, id: &str, new_path: String) -> Result<(), String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         e.path = Some(std::path::PathBuf::from(new_path));
         Ok(())
     }
@@ -320,7 +367,11 @@ impl DocumentRegistry {
     /// coordinator has resolved drafts + dirty state (ADR-008).
     pub fn dispose(&self, id: &str) -> bool {
         let mut inner = self.lock();
-        if inner.docs.get(id).is_some_and(|entry| entry.views > 0 || entry.draft.is_some()) {
+        if inner
+            .docs
+            .get(id)
+            .is_some_and(|entry| entry.views > 0 || entry.draft.is_some())
+        {
             return false;
         }
         inner.docs.remove(id).is_some()
@@ -342,23 +393,36 @@ impl DocumentRegistry {
         Self::apply_entry(e, tx)
     }
 
-    fn apply_entry(e: &mut DocEntry, tx: &WireTransaction) -> Result<TransactionRecord, crate::documents::ApplyError> {
+    fn apply_entry(
+        e: &mut DocEntry,
+        tx: &WireTransaction,
+    ) -> Result<TransactionRecord, crate::documents::ApplyError> {
         if tx.base_revision != e.revision {
-            return Err(crate::documents::ApplyError::StaleRevision { expected: e.revision, actual: tx.base_revision });
+            return Err(crate::documents::ApplyError::StaleRevision {
+                expected: e.revision,
+                actual: tx.base_revision,
+            });
         }
         let applied = Self::validate_ops(&e.content, &tx.ops)?;
         for op in applied.iter().rev() {
-            e.content.replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
+            e.content
+                .replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
         }
         e.revision += 1;
         e.dirty = true;
-        let record = TransactionRecord { revision: e.revision, ops: applied };
+        let record = TransactionRecord {
+            revision: e.revision,
+            ops: applied,
+        };
         e.undo.push(record.clone());
         e.redo.clear();
         Ok(record)
     }
 
-    fn validate_ops(content: &str, ops: &[DocOp]) -> Result<Vec<AppliedOp>, crate::documents::ApplyError> {
+    fn validate_ops(
+        content: &str,
+        ops: &[DocOp],
+    ) -> Result<Vec<AppliedOp>, crate::documents::ApplyError> {
         if ops.is_empty() {
             return Err(crate::documents::ApplyError::InvalidOp(
                 OpValidationError::OutOfOrder(0),
@@ -417,7 +481,10 @@ impl DocumentRegistry {
     /// Undo the last transaction; returns inverse operations at the new revision.
     pub fn undo(&self, id: &str) -> Result<Option<TransactionRecord>, String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         let record = match e.undo.pop() {
             None => return Ok(None),
             Some(r) => r,
@@ -425,39 +492,54 @@ impl DocumentRegistry {
         // Inverse ranges address the post-edit buffer, including the byte
         // shifts introduced by earlier operations in the original batch.
         let mut shift: i64 = 0;
-        let ops: Vec<AppliedOp> = record.ops.iter().map(|op| {
-            let start = (i64::from(op.start_byte) + shift) as u32;
-            shift += op.text.len() as i64 - i64::from(op.end_byte - op.start_byte);
-            AppliedOp {
-                start_byte: start,
-                end_byte: start + op.text.len() as u32,
-                text: op.old_text.clone(),
-                old_text: op.text.clone(),
-            }
-        }).collect();
+        let ops: Vec<AppliedOp> = record
+            .ops
+            .iter()
+            .map(|op| {
+                let start = (i64::from(op.start_byte) + shift) as u32;
+                shift += op.text.len() as i64 - i64::from(op.end_byte - op.start_byte);
+                AppliedOp {
+                    start_byte: start,
+                    end_byte: start + op.text.len() as u32,
+                    text: op.old_text.clone(),
+                    old_text: op.text.clone(),
+                }
+            })
+            .collect();
         for op in ops.iter().rev() {
-            e.content.replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
+            e.content
+                .replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
         }
         e.revision += 1;
         e.recompute_dirty();
         e.redo.push(record);
-        Ok(Some(TransactionRecord { revision: e.revision, ops }))
+        Ok(Some(TransactionRecord {
+            revision: e.revision,
+            ops,
+        }))
     }
 
     pub fn redo(&self, id: &str) -> Result<Option<TransactionRecord>, String> {
         let mut inner = self.lock();
-        let e = inner.docs.get_mut(id).ok_or_else(|| format!("unknown document {id}"))?;
+        let e = inner
+            .docs
+            .get_mut(id)
+            .ok_or_else(|| format!("unknown document {id}"))?;
         let record = match e.redo.pop() {
             None => return Ok(None),
             Some(r) => r,
         };
         for op in record.ops.iter().rev() {
-            e.content.replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
+            e.content
+                .replace_range(op.start_byte as usize..op.end_byte as usize, &op.text);
         }
         e.revision += 1;
         e.recompute_dirty();
         e.undo.push(record.clone());
-        Ok(Some(TransactionRecord { revision: e.revision, ops: record.ops }))
+        Ok(Some(TransactionRecord {
+            revision: e.revision,
+            ops: record.ops,
+        }))
     }
 
     pub fn can_undo(&self, id: &str) -> Option<bool> {
@@ -482,7 +564,6 @@ pub fn wire_ops(record: &TransactionRecord) -> Vec<DocOp> {
         })
         .collect()
 }
-
 
 #[cfg(test)]
 mod drafts_tests;

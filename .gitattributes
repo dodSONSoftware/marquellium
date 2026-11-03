@@ -1,0 +1,4 @@
+# Preserve captured command output and imported design assets byte-for-byte.
+# ANSI/CR output and generated whitespace are evidence, not source formatting.
+docs/validation/** -text -whitespace
+docs/images/marquellium-brand-assets/*.svg -text -whitespace

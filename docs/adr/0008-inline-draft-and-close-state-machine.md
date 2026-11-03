@@ -73,6 +73,34 @@ Rust exposes, per doc: `draft_active` (set/cleared by the frontend with the sess
 
 ## Test mapping
 
+### macOS termination entry point (M3V acceptance follow-up, November 2, 2026)
+
+Dock Quit must enter the coordinator before Cocoa terminates the process. In
+the pinned Tao 0.37.2 runtime, `applicationWillTerminate:` only reports an exit
+already underway; Dock Quit did not emit Tauri's preventable `ExitRequested`
+callback in the packaged-app test. The application therefore installs an
+`applicationShouldTerminate:` override on a no-ivar subclass of its existing
+delegate. All other runtime delegate callbacks and instance layout are retained.
+Installation fails closed if the delegate/subclass cannot be established.
+
+The override returns `NSTerminateCancel` synchronously and starts the same
+asynchronous Rust coordinator used by menu Quit. This returns AppKit to its
+ordinary run loop so webviews can resolve drafts and canonical unsaved work.
+Only successful resolution calls `AppHandle::exit`; Cancel or failure leaves the
+app running. This follows AppKit's documented termination-veto semantics:
+[Apple NSApplication termination](https://developer.apple.com/documentation/appkit/nsapplication/terminate(_:)?language=objc).
+
+When a resolution prompt is needed, its owner window is unminimized, shown, and
+focused before delivery. Failure is observable and the pending request is
+removed; focus alone is insufficient for minimized macOS windows. Preparation
+and internal draft-discard acknowledgements do not bring windows forward.
+
+Content-free diagnostics record the native Quit source and each window's actual
+focus-query result. These are acceptance evidence, not substitutes for invoking
+the Dock menu. The macOS regression test checks the method ABI, identical
+delegate layout, and inherited callback behavior; the packaged two-window
+Dock/Cancel/retry test checks the OS integration.
+
 | Test | Scenario |
 |---|---|
 | AT-105 | S2 Save/Discard/Cancel on tab/window close; Cancel leaves state intact |

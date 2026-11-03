@@ -1,0 +1,25 @@
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(false)), ("visual-159eff36-a3d0-4344-bee0-a7e55c4071ce", Ok(false))]
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("visual-159eff36-a3d0-4344-bee0-a7e55c4071ce", Ok(false)), ("main", Ok(false))]
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(false)), ("visual-159eff36-a3d0-4344-bee0-a7e55c4071ce", Ok(false))]
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(false)), ("visual-159eff36-a3d0-4344-bee0-a7e55c4071ce", Ok(true))]
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(false)), ("visual-159eff36-a3d0-4344-bee0-a7e55c4071ce", Ok(false))]
+close-flow window=main stage=Destroyed
+close-flow window=visual-159eff36-a3d0-4344-bee0-a7e55c4071ce stage=Destroyed
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(false)), ("visual-3f4bcc9a-b407-4c4a-bec1-8d4428504914", Ok(false))]
+close-flow window=main stage=Destroyed
+close-flow window=visual-3f4bcc9a-b407-4c4a-bec1-8d4428504914 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true)), ("visual-ad54fa6e-57ce-4464-af17-b6ced04be651", Ok(false))]
+close-flow window=window-3b9cace5-05af-4767-b3c5-a778690c8aad stage=NativeCloseRequested
+close-flow window=window-3b9cace5-05af-4767-b3c5-a778690c8aad stage=Requested
+close-flow window=window-3b9cace5-05af-4767-b3c5-a778690c8aad stage=Destroyed
+close-flow quit source=appkit-applicationShouldTerminate
+close-flow quit focus=[("main", Ok(true)), ("visual-ad54fa6e-57ce-4464-af17-b6ced04be651", Ok(false))]
+close-flow window=main stage=Destroyed
+close-flow window=visual-ad54fa6e-57ce-4464-af17-b6ced04be651 stage=Destroyed

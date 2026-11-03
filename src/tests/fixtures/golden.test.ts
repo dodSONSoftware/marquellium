@@ -19,7 +19,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { renderMarkdown } from "../../core/render/pipeline";
+import { renderMarkdown, imageSrc } from "../../core/render/pipeline";
 
 const ROOT = join(__dirname, "..", "..", "..");
 const FIX = (p: string) => join(ROOT, "fixtures", p);
@@ -174,11 +174,10 @@ describe("local resolution (FR-023)", () => {
 
   it("resolves relative images against the containing document", () => {
     const dir = file.slice(0, file.lastIndexOf("/") + 1);
-    // Absolute local-media: URI (the Rust handler requires an absolute
-    // path and scope-checks it). dir ends in "/", so the join keeps the
-    // leading slash: "local-media:/Users/...".
+    // Hierarchical URL: WebKit/Tauri require an authority, while Rust
+    // still validates the decoded absolute path against the document scope.
     const expected =
-      "local-media:" +
+      "local-media://localhost" +
       (dir + "assets/diagram.png").split("/").map(encodeURIComponent).join("/");
     expect(html).toContain(`src="${expected}"`);
   });
@@ -286,4 +285,13 @@ describe("resource exhaustion (T2/T8)", () => {
     expect(Date.now() - started).toBeLessThan(60_000);
     expect(html.length).toBeLessThan(10_000_000);
   }, 120_000);
+});
+
+it("malformed percent-encoded local images are inert rather than crashing rendering", () => {
+  for (const path of ["assets/%GG.png", "assets/end%.png"]) expect(imageSrc(path, "/private/tmp/note.md")).toBeNull();
+  const rendered = renderMarkdown("![bad](assets/%GG.png)", "/private/tmp/note.md");
+  expect(rendered.html).not.toMatch(/<img\b/);
+  expect(rendered.html).toContain("invalid URI encoding");
+  // The Markdown parser legitimately encodes a literal percent before this boundary.
+  expect(renderMarkdown("![literal](assets/end%.png)", "/private/tmp/note.md").html).toContain("end%25.png");
 });

@@ -9,7 +9,7 @@ import { prepareLocalizedEdit } from "../../core/localized-edit";
 import { applyOps, bytesToString, stringToBytes } from "../../core/ops";
 import type { DraftLease, DraftObservation, DraftPort } from "../../core/draft-session";
 
-function harness(text: string) {
+function harness(text: string, beforeOpen?: (docId: string) => Promise<boolean>, context?: { text: string; anchor: number; head: number }) {
   let snapshot = { docId: "doc", revision: 0, text };
   let lease: DraftLease | null = null;
   let token = 0;
@@ -54,7 +54,7 @@ function harness(text: string) {
   function Component() {
     const [, update] = useState(0);
     useEffect(() => { const listener = () => update((n) => n + 1); renderers.add(listener); return () => { renderers.delete(listener); }; }, []);
-    return <VisualSurface snapshot={{ ...snapshot }} store={store} renderer={async () => "<svg><rect width='10' height='10'/></svg>"} />;
+    return <VisualSurface snapshot={{ ...snapshot }} context={context} store={store} beforeOpen={beforeOpen} renderer={async () => "<svg><rect width='10' height='10'/></svg>"} />;
   }
   return { Component, store, history, get snapshot() { return snapshot; }, get lease() { return lease; },
     sourceEdit: (text: string) => { snapshot = { ...snapshot, revision: snapshot.revision + 1, text }; notify(); },
@@ -100,6 +100,20 @@ function editor(): EditorView {
 }
 
 describe("Visual prototype DOM integration", () => {
+  it("canceled ownership resolution does not replace another window's draft", async () => {
+    const beforeOpen = vi.fn(async () => false);
+    const h = harness("Original.", beforeOpen);
+    const opening = { baseRevision: 0, startByte: 0, endByte: 9, openingText: "Original.", kind: "source" as const };
+    const lease = await h.store.draftPort.acquire("doc", opening);
+    await h.store.draftPort.update("doc", lease.token, { generation: 1, text: "other window draft", valid: true });
+    await act(async () => root.render(<h.Component />));
+    await click("Edit block source");
+    expect(beforeOpen).toHaveBeenCalledWith("doc");
+    expect(container.querySelector(".cm-editor")).toBeNull();
+    expect(h.lease?.text).toBe("other window draft");
+    expect(h.history).toHaveLength(0);
+  });
+
   it.each(["Original heading ", ""])("recovers direct heading input after a temporary rejected value: %j", async (temporary) => {
     const original = "### Original heading\n\n<!-- KEEP -->";
     const h = harness(original);
@@ -207,8 +221,92 @@ describe("Visual prototype DOM integration", () => {
   it("bounds prototype document display without changing source", async () => {
     const h = harness("x".repeat(140_000));
     await act(async () => root.render(<h.Component />));
-    expect(container.textContent).toContain("exceeds the prototype");
+    expect(container.textContent).toContain("Source-only block");
+    expect(container.querySelector("pre")?.textContent?.length).toBeLessThanOrEqual(1025);
     expect(h.history).toHaveLength(0);
     expect(h.snapshot.text).toHaveLength(140_000);
   });
+});
+
+
+describe("source-anchored bounded rendering", () => {
+  it("opens the page containing a source selection and selects the exact leaf", async () => {
+    const text = Array.from({ length: 130 }, (_, i) => `Paragraph ${i}.`).join("\n\n");
+    const from = text.indexOf("Paragraph 100");
+    const h = harness(text, undefined, { text, anchor: from + 2, head: from + 7 });
+    await act(async () => root.render(<h.Component />));
+    const focused = document.activeElement as HTMLInputElement;
+    expect(focused.value).toBe("Paragraph 100.");
+    expect([focused.selectionStart, focused.selectionEnd]).toEqual([2, 7]);
+    expect(container.querySelectorAll(".visual-block").length).toBeLessThanOrEqual(60);
+    await click("Next blocks");
+    expect(container.textContent).toContain("Blocks 121–130");
+    expect(h.history).toEqual([]);
+    expect(h.snapshot.text).toBe(text);
+  });
+  it("bounds controls for a one MiB document without truncating canonical source", async () => {
+    const text = Array.from({ length: 11000 }, (_, i) => `${i}: ` + "preserved content ".repeat(6)).join("\n\n");
+    const h = harness(text);
+    await act(async () => root.render(<h.Component />));
+    expect(container.querySelectorAll(".visual-block")).toHaveLength(60);
+    expect(container.textContent).toContain("Next blocks");
+    expect(h.snapshot.text).toBe(text);
+    expect(h.history).toEqual([]);
+  });
+});
+
+describe("M4 Visual DOM editing", () => {
+  it("edits nested rendered lists and task state as localized shared history entries", async () => {
+    const original = "- [ ] Task\n  - Nested **bold**\n\n<!-- EXACT -->";
+    const h = harness(original); await act(async () => root.render(<h.Component />));
+    await type("Edit list text", "Changed task");
+    expect(h.snapshot.text).toBe(original.replace("Task", "Changed task"));
+    await act(async () => container.querySelector<HTMLInputElement>('[aria-label="Toggle task"]')!.click());
+    expect(h.snapshot.text).toBe(original.replace("Task", "Changed task").replace("[ ]", "[x]"));
+    expect(h.history).toHaveLength(2);
+  });
+  it("inserts blocks, edits an empty table cell, and applies table helpers", async () => {
+    const h = harness("| A | B |\n|:---|---:|\n| x | |\n\n<!-- EXACT -->"); await act(async () => root.render(<h.Component />));
+    await type("Edit table cell 2,2", "a|b");
+    expect(h.snapshot.text).toContain("a\\|b");
+    await click("Add row"); expect(h.snapshot.text).toContain("| | |\n| x |");
+    await click("Align center"); expect(h.snapshot.text).toContain("|:---:|---:|");
+    await click("Insert heading"); expect(h.snapshot.text).toContain("<!-- EXACT -->\n\n## New heading");
+    expect(h.history).toHaveLength(4);
+  });
+  it("uses isolated math draft validation and one canonical Apply entry", async () => {
+    const original = "$$\nx^2\n$$\n\n<!-- EXACT -->";
+    const h = harness(original); await act(async () => root.render(<h.Component />));
+    expect(container.querySelector(".katex")).not.toBeNull();
+    await click("Edit math source");
+    await act(async () => { const view = editor(); view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: "$$\n\\frac{\n$$" } }); });
+    expect(h.snapshot.text).toBe(original);
+    expect([...container.querySelectorAll("button")].find((b) => b.textContent === "Apply")?.disabled).toBe(true);
+    expect(container.querySelector(".katex")).not.toBeNull();
+    await act(async () => { const view = editor(); view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: "$$\nx^3\n$$" } }); });
+    await click("Apply"); expect(h.snapshot.text).toBe(original.replace("x^2", "x^3")); expect(h.history).toHaveLength(1);
+  });
+  it("formats a selected rendered leaf through one canonical block transaction", async () => {
+    const h = harness("Original paragraph.\n\n<!-- EXACT -->"); await act(async () => root.render(<h.Component />));
+    const input = container.querySelector<HTMLInputElement>('[aria-label="Edit paragraph text"]')!;
+    await act(async () => { input.focus(); input.setSelectionRange(0, 8); input.dispatchEvent(new MouseEvent("mouseup", { bubbles: true })); });
+    await act(async () => window.dispatchEvent(new CustomEvent("visual-command", { detail: "bold" })));
+    expect(h.snapshot.text).toBe("**Original** paragraph.\n\n<!-- EXACT -->"); expect(h.history).toHaveLength(1);
+  });
+});
+
+it("keeps an empty cell's live input mounted across typing, clearing and refilling", async () => {
+  const original = "| A | B |\n|---|---|\n| x | |\n\n<!-- KEEP -->";
+  const h = harness(original); await act(async () => root.render(<h.Component />));
+  const input = container.querySelector<HTMLInputElement>('[aria-label="Edit table cell 2,2"]')!;
+  input.focus();
+  await type("Edit table cell 2,2", "a");
+  expect(container.querySelector('[aria-label="Edit table cell 2,2"]')).toBe(input);
+  expect(document.activeElement).toBe(input);
+  await type("Edit table cell 2,2", "a|b");
+  expect(h.snapshot.text).toBe(original.replace("| x | |", "| x | a\\|b|"));
+  await type("Edit table cell 2,2", ""); expect(h.snapshot.text).toBe(original);
+  await type("Edit table cell 2,2", "refilled");
+  expect(h.snapshot.text).toContain("| x | refilled|");
+  expect(container.querySelector('[aria-label="Edit table cell 2,2"]')).toBe(input);
 });

@@ -1,0 +1,244 @@
+$ vitest run
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.5 [39m[90m/work[39m
+
+ [32m✓[39m src/services/native.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/core/close-state-machine.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/features/editor/edit-commands.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/core/positions.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/core/render/url-policy.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/core/source-map.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/core/localized-edit.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/features/visual/visual-model.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m src/features/documents/DocumentStore.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 197[2mms[22m[39m
+ [32m✓[39m src/features/documents/session.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/core/draft-session.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32m✓[39m src/core/render/outline.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/core/text-diff.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/features/documents/useFileOpenRequests.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/features/documents/useLifecycle.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/features/visual/preview/controller.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/features/settings/Preferences.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m src/core/render/media-path.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/core/table-edit.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m src/core/image-insertion.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[90mstdout[2m | src/features/editor/SourceEditor.test.tsx[2m > [22m[2mmeasures the one MiB Source input adapter: original single-line corpus
+[22m[39mSource adapter 1 MiB (original single-line corpus): median=2.47ms p95=9.24ms (30 synchronous CM dispatches; excludes native IPC/paint)
+
+ [32m✓[39m src/services/subscription-scope.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/features/reader/navigation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 384[2mms[22m[39m
+   [33m[2m✓[22m[39m real Reader headings, paragraphs, math and code retain navigable raw source offsets[33m 354[2mms[22m[39m
+ [32m✓[39m src/features/export/document.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m src/features/workspace/WorkspaceSearch.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 29[2mms[22m[39m
+[90mstdout[2m | src/features/editor/SourceEditor.test.tsx[2m > [22m[2mmeasures the one MiB Source input adapter: multiline Markdown
+[22m[39mSource adapter 1 MiB (multiline Markdown): median=3.15ms p95=5.62ms (30 synchronous CM dispatches; excludes native IPC/paint)
+
+ [32m✓[39m src/features/editor/SourceEditor.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 372[2mms[22m[39m
+ [32m✓[39m src/core/render/math.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/core/view-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/core/source-buffer.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/local-links.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [31m❯[39m src/tests/fixtures/fixture-validation.test.ts [2m([22m[2m52 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 904[2mms[22m[39m
+   [31m❯[39m fixture inventory (M0 gate) [2m(2)[22m
+[31m     [31m×[31m all required fixtures exist and are non-empty[39m[32m 10[2mms[22m[39m
+     [32m✓[39m workspace fixture contains its symlinks[32m 0[2mms[22m[39m
+   [32m✓[39m corpus parseability (input contract for M2 golden + M3V) [2m(32)[22m
+     [32m✓[39m found the expected corpus files[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/code-heavy.md parses without throwing[32m 25[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/common-markdown.md parses without throwing[32m 33[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/bom-expected.md parses without throwing[32m 4[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/bom-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/crlf-expected.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/crlf-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/mixed-expected.md parses without throwing[32m 3[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/mixed-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/no-trailing-expected.md parses without throwing[32m 2[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/edit-preserving/no-trailing-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/frontmatter.md parses without throwing[32m 2[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/gfm-full.md parses without throwing[32m 34[2mms[22m[39m
+     [33m[2m✓[22m[39m fixtures/markdown/large-1mb.md parses without throwing[33m 733[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/links-images.md parses without throwing[32m 10[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m3v/direct-expected.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m3v/direct-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m3v/mapping.md parses without throwing[32m 3[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m3v/table-expected.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m3v/table-input.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/m4/technical-document.md parses without throwing[32m 8[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/mermaid-math.md parses without throwing[32m 2[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/bom-crlf.md parses without throwing[32m 2[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/bom.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/cr-only.md parses without throwing[32m 2[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/crlf.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/mixed-endings.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/no-trailing-newline.md parses without throwing[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/roundtrip/trailing-spaces.md parses without throwing[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/unicode.md parses without throwing[32m 3[2mms[22m[39m
+     [32m✓[39m fixtures/markdown/unsupported-constructs.md parses without throwing[32m 4[2mms[22m[39m
+     [32m✓[39m large-1mb.md meets the 1 MB benchmark size (NFR-002 input)[32m 0[2mms[22m[39m
+   [32m✓[39m hostile corpus [2m(12)[22m
+     [32m✓[39m fixtures/hostile-input/deep-nesting.md has valid-UTF-8 status matching its design[32m 1[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/invalid-utf8.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/javascript-url.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/mermaid-bomb.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/null-byte.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/oversized-embedded.md has valid-UTF-8 status matching its design[32m 3[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/path-traversal.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/tracking-pixel.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m fixtures/hostile-input/xss-script.md has valid-UTF-8 status matching its design[32m 0[2mms[22m[39m
+     [32m✓[39m mermaid-bomb contains a ≥5000-edge diagram (resource-exhaustion input, T2)[32m 0[2mms[22m[39m
+     [32m✓[39m null-byte.md is valid UTF-8 but embeds U+0000 (content-hostile, not encoding-invalid)[32m 0[2mms[22m[39m
+     [32m✓[39m path-traversal covers the canonical attack shapes (T3)[32m 0[2mms[22m[39m
+   [32m✓[39m byte-exactness fixtures (FR-003 input contract) [2m(6)[22m
+     [32m✓[39m crlf.md: every line ending is CRLF, no bare LF[32m 0[2mms[22m[39m
+     [32m✓[39m bom.md and bom-crlf.md: start with the UTF-8 BOM[32m 0[2mms[22m[39m
+     [32m✓[39m no-trailing-newline.md: does not end with a newline[32m 0[2mms[22m[39m
+     [32m✓[39m mixed-endings.md: contains both LF-only and CRLF lines[32m 0[2mms[22m[39m
+     [32m✓[39m cr-only.md: CR endings with no NUL-terminated CRLF[32m 0[2mms[22m[39m
+     [32m✓[39m edit-preserving pairs: input ≠ expected, and expected carries the edit[32m 1[2mms[22m[39m
+ [32m✓[39m src/features/workspace/WorkspaceTree.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/tests/fixtures/source-fidelity.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 879[2mms[22m[39m
+   [32m✓[39m mapping fidelity across the complete Markdown corpus [2m(30)[22m
+     [33m[2m✓[22m[39m reconstructs raw bytes from revision-bound segments: /work/fixtures/markdown/large-1mb.md[33m 736[2mms[22m[39m
+ [32m✓[39m src/features/commands/CommandPalette.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/features/sidebar/Sidebar.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+[90mstderr[2m | src/tests/fixtures/mode-cycle.test.tsx[2m > [22m[2mno-edit four-mode cycles preserve the corpus: common-markdown.md
+[22m[39mIn HTML, <p> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  <div>
+  <div>
+  <VisualSurface snapshot={{docId:"/wo...", ...}} store={{...}} renderer={function renderer}>
+    <div ref={{current:null}} className="reader vis..." onKeyDown={function onKeyDown}>
+      <details>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section tabIndex={-1} data-block-from={611} onFocus={function onFocus} className="visual-block">
+>       <p>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <ReaderInner content={"![alt te..."} docPath={null} onOpenLocal={function noLink} ...>
+            <div className="reader" ref={undefined}>
+              <Markdown remarkPlugins={[...]} rehypePlugins={[...]} urlTransform={function urlTransform} ...>
+>               <p data-source-start={0}>
+          ...
+        ...
+      ...
+
+<p> cannot contain a nested <p>.
+See this log for the ancestor stack trace.
+In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  <div>
+  <div>
+  <VisualSurface snapshot={{docId:"/wo...", ...}} store={{...}} renderer={function renderer}>
+    <div ref={{current:null}} className="reader vis..." onKeyDown={function onKeyDown}>
+      <details>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section>
+      <section tabIndex={-1} data-block-from={611} onFocus={function onFocus} className="visual-block">
+>       <p>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <span>
+          <textarea>
+          <ReaderInner content={"![alt te..."} docPath={null} onOpenLocal={function noLink} ...>
+>           <div className="reader" ref={undefined}>
+          ...
+        ...
+      ...
+
+<p> cannot contain a nested <div>.
+See this log for the ancestor stack trace.
+
+ [32m✓[39m src/features/visual/useSourceMap.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 543[2mms[22m[39m
+   [33m[2m✓[22m[39m terminates obsolete parsers and ignores their delayed results[33m 543[2mms[22m[39m
+ [32m✓[39m src/features/visual/VisualSurface.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1724[2mms[22m[39m
+   [32m✓[39m source-anchored bounded rendering [2m(2)[22m
+     [33m[2m✓[22m[39m bounds controls for a one MiB document without truncating canonical source[33m 1209[2mms[22m[39m
+ [32m✓[39m src/tests/fixtures/mode-cycle.test.tsx [2m([22m[2m30 tests[22m[2m)[22m[33m 6027[2mms[22m[39m
+   [33m[2m✓[22m[39m no-edit four-mode cycles preserve the corpus: large-1mb.md[33m 4937[2mms[22m[39m
+ [32m✓[39m src/tests/fixtures/golden.test.ts [2m([22m[2m51 tests[22m[2m)[22m[33m 7847[2mms[22m[39m
+   [32m✓[39m corpus golden renders (FR-020, T1) [2m(31)[22m
+     [33m[2m✓[22m[39m renders fixtures/markdown/large-1mb.md[33m 728[2mms[22m[39m
+   [32m✓[39m resource exhaustion (T2/T8) [2m(3)[22m
+     [33m[2m✓[22m[39m deep-nesting renders within budget[33m 5431[2mms[22m[39m
+     [33m[2m✓[22m[39m oversized-embedded renders within budget[33m 1523[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/tests/fixtures/fixture-validation.test.ts[2m > [22mfixture inventory (M0 gate)[2m > [22mall required fixtures exist and are non-empty
+[31m[1mAssertionError[22m: missing or empty fixtures: filesystem/workspace-a/docs/guide.md, filesystem/workspace-a/docs/sub/api.md: expected [ …(2) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "filesystem/workspace-a/docs/guide.md",[39m
+[31m+   "filesystem/workspace-a/docs/sub/api.md",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/tests/fixtures/fixture-validation.test.ts:[2m101:73[22m[39m
+    [90m 99|[39m       (p) => !existsSync(FIX(p)) || statSync(FIX(p)).size === 0,
+    [90m100|[39m     );
+    [90m101|[39m     expect(missing, `missing or empty fixtures: ${missing.join(", ")}`…
+    [90m   |[39m                                                                         [31m^[39m
+    [90m102|[39m   });
+    [90m103|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m37 passed[39m[22m[90m (38)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m497 passed[39m[22m[90m (498)[39m
+[2m   Start at [22m 02:25:19
+[2m   Duration [22m 8.30s[2m (tests 66%, import 12%, transform 12%, environment 11%)[22m
+
+[ELIFECYCLE] Test failed. See above for more details.

@@ -5,7 +5,9 @@
   "windows": [
     "main",
     "window",
-    "visual-*"
+    "window-*",
+    "visual-*",
+    "print-*"
   ],
   "permissions": [
     "core:default",

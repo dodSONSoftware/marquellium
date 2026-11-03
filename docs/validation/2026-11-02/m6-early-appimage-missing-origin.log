@@ -1,0 +1,15 @@
+PASS cold CLI open with spaces and Unicode
+PASS relative local image loads
+PASS KaTeX renders in native webview
+PASS Mermaid renders in native webview
+PASS second native window shares canonical document
+
+(markdown-viewer:9939): dbind-WARNING **: 02:36:43.028: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+Traceback (most recent call last):
+  File "/tmp/m6-webdriver.py", line 102, in <module>
+    check("second process hands relative path to focused window", lambda: script("return document.title.includes('second note.md')"))
+  File "/tmp/m6-webdriver.py", line 62, in check
+    until(predicate)
+  File "/tmp/m6-webdriver.py", line 59, in until
+    raise AssertionError("Timed out waiting for native UI")
+AssertionError: Timed out waiting for native UI

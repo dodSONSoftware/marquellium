@@ -170,7 +170,7 @@ vi.mock("../../services/native", () => ({
       reload: () => null,
       save: () => ({ ok: true as const }),
       saveAs: () => ({ ok: true as const }),
-      recoverySnapshot: () => null,
+      recoverySnapshot: async () => null,
     },
   },
 }));
@@ -178,6 +178,16 @@ vi.mock("../../services/native", () => ({
 // --- helpers -------------------------------------------------------------------
 
 describe("shared saved metadata", () => {
+  it("flushes rather than drops Source edits and pins the revision before automatic reload", async () => {
+    const store = new DocumentStore();
+    const id = await store.newDocument();
+    keystroke(store, id, "", 0, 0, "must not disappear");
+    const reload = vi.spyOn(native.documents, "reload").mockRejectedValueOnce(new Error("document changed before reload"));
+    await expect(store.reloadFromDisk(id)).rejects.toThrow("changed before reload");
+    expect(reload).toHaveBeenCalledWith(id, 1);
+    expect(store.content(id)).toBe("must not disappear");
+    expect(store.isDirty(id)).toBe(true);
+  });
   it("refreshes three mirrors after a remote save without changing text revision or history", async () => {
     const first = new DocumentStore();
     const id = await first.newDocument();
@@ -593,9 +603,9 @@ describe("localized canonical transactions", () => {
     const applying = store.applyLocalizedEdit(edit);
     await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
     const before = store.get(id);
-    // Reload is mocked to leave canonical text unchanged; its snapshot still
-    // replaces the mirror object, reproducing a resync before a delayed ack.
-    await store.reloadFromDisk(id);
+    // A saved-metadata refresh replaces the mirror object without waiting
+    // for this delayed acknowledgement, unlike a destructive reload.
+    await store.refreshSavedDocument(id);
     expect(store.get(id)).not.toBe(before);
     complete();
     await applying;

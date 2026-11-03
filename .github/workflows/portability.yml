@@ -1,0 +1,56 @@
+name: M6 portability candidates
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            bundles: deb,appimage
+          - os: windows-latest
+            bundles: nsis,msi
+          - os: macos-latest
+            bundles: app
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb dbus-x11 xauth webkit2gtk-driver libglib2.0-bin openbox
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build:web
+      - run: node scripts/check-workers.mjs
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Build installer candidates (no publication)
+        run: pnpm tauri build --bundles ${{ matrix.bundles }}
+      - name: Linux native WebKit smoke
+        if: runner.os == 'Linux'
+        run: |
+          cargo install tauri-driver --version 2.1.0 --locked
+          sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
+          dbus-run-session -- xvfb-run -a python3 scripts/acceptance/m6-webdriver.py /usr/bin/markdown-viewer --output /tmp/m6-native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m6-${{ runner.os }}-${{ runner.arch }}-candidate
+          path: |
+            src-tauri/target/release/bundle/
+            /tmp/m6-native/
+          if-no-files-found: error

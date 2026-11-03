@@ -13,8 +13,8 @@ mod tests;
 
 pub use recovery::{RecoveryInfo, RecoveryStore};
 pub use registry::{
-    AppliedOp, DocEntry, DocId, DocumentRegistry, DocumentUpdate, NewlinePolicy, OpValidationError,
-    TransactionRecord, wire_ops, DraftKind, DraftLease, DraftOpening, DraftUpdate,
+    wire_ops, AppliedOp, DocEntry, DocId, DocumentRegistry, DocumentUpdate, DraftKind, DraftLease,
+    DraftOpening, DraftUpdate, NewlinePolicy, OpValidationError, TransactionRecord,
 };
 pub use service::{DiskRevision, DocumentSnapshot, OpenError, SaveError, SaveResult};
 

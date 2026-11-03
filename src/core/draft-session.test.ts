@@ -18,6 +18,11 @@ function harness(text = "Original **source**.") {
   const port: DraftPort = {
     snapshot: vi.fn(async () => ({ ...snapshot })),
     info: vi.fn(async () => structuredClone(lease)),
+    resume: vi.fn(async (_docId, token) => {
+      if (!lease || lease.ownerWindow !== null || lease.token !== token) throw new Error("not orphaned");
+      lease = { ...lease, ownerWindow: "resumed", token: `token-${++next}`, valid: false };
+      return structuredClone(lease);
+    }),
     acquire: vi.fn(async (docId, opening) => {
       if (lease) throw new Error("resolve current draft first");
       lease = { docId, opening: structuredClone(opening), token: `token-${++next}`, ownerWindow: "a", generation: 0, text: opening.openingText, valid: false };
@@ -52,6 +57,7 @@ function harness(text = "Original **source**.") {
   const valid: DraftValidator = () => ({ valid: true, diagnostics: [] });
   return {
     port, notify, canonicalHistory,
+    orphan: () => { if (!lease) throw new Error("missing lease"); lease = { ...lease, ownerWindow: null, valid: false }; notify({ lease: structuredClone(lease) }); },
     get snapshot() { return { ...snapshot }; },
     get lease() { return structuredClone(lease); },
     sourceEdit: (text: string) => { snapshot = { ...snapshot, revision: snapshot.revision + 1, text }; notify({ snapshot: { ...snapshot } }); },
@@ -64,6 +70,36 @@ function harness(text = "Original **source**.") {
 }
 
 describe("isolated draft history and ownership", () => {
+  it("resumes a recovered modified draft with fresh local history and one canonical Apply", async () => {
+    const h = harness();
+    const original = await h.open();
+    original.replaceText("recovered draft"); await original.settle();
+    h.orphan();
+    const map = createSourceMap(h.snapshot);
+    const restored = await DraftSession.resume(map, map.blocks[0]!, h.port, () => ({ valid: true, diagnostics: [] }));
+    await restored.settle();
+    expect(restored.text).toBe("recovered draft");
+    expect(restored.modified).toBe(true);
+    expect(undoDepth(restored.state)).toBe(0);
+    expect(h.snapshot.text).toBe("Original **source**.");
+    await restored.apply();
+    expect(h.snapshot.text).toBe("recovered draft");
+    expect(h.canonicalHistory).toHaveLength(1);
+  });
+
+  it("refuses to attach an orphan to a shifted base without mutating or losing its text", async () => {
+    const h = harness();
+    const original = await h.open();
+    original.replaceText("preserve draft"); await original.settle();
+    h.orphan();
+    h.sourceEdit("Prefix.\n\nOriginal **source**.");
+    const map = createSourceMap(h.snapshot);
+    await expect(DraftSession.resume(map, map.blocks[1]!, h.port, () => ({ valid: true, diagnostics: [] }))).rejects.toThrow("does not match");
+    expect(h.lease?.text).toBe("preserve draft");
+    expect(h.lease?.ownerWindow).toBeNull();
+    expect(h.canonicalHistory).toHaveLength(0);
+  });
+
   it("Revert is an independent local undo step; Cancel destroys history without canonical mutation", async () => {
     const h = harness();
     const session = await h.open();

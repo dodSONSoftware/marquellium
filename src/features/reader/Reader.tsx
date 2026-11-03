@@ -16,6 +16,7 @@
  * emits come from the same slugger, so ids and TOC entries agree by
  * construction.
  */
+import { MathPreview, MermaidPreview } from "./TechnicalPreview";
 import { memo, useMemo, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -42,6 +43,19 @@ import {
 } from "../../core/render/pipeline";
 import { classifyUrl, safeUrl } from "../../core/render/url-policy";
 import "./reader.css";
+interface AnchoredNode { position?: { start?: { offset?: number } }; data?: { hProperties?: Record<string, unknown> }; children?: AnchoredNode[] }
+const sourceAnchors = () => (tree: AnchoredNode) => {
+  const visit = (node: AnchoredNode) => {
+    if (node.position?.start?.offset !== undefined) {
+      node.data ??= {}; node.data.hProperties ??= {};
+      node.data.hProperties["data-source-start"] = node.position.start.offset;
+    }
+    node.children?.forEach(visit);
+  };
+  tree.children?.forEach(visit);
+};
+const anchoredPlugins = [...readerRemarkPlugins, sourceAnchors];
+
 
 hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("sh", bash);
@@ -79,6 +93,7 @@ export interface ReaderProps {
   /** Open an external link in the system browser. */
   onOpenExternal: (url: string) => void;
   /** Exposes the scroll container (FR-014 active-heading tracking). */
+  showFrontmatter?: boolean;
   scrollRef?: (el: HTMLDivElement | null) => void;
 }
 
@@ -97,12 +112,16 @@ function CodeBlock({
   text,
   lang,
   dataRender,
+  sourceStart,
 }: {
   text: string;
   lang: string | null;
   dataRender: string | undefined;
+  sourceStart?: number;
 }) {
   const [copied, setCopied] = useState(false);
+  if (dataRender === "math-block") return <div data-source-start={sourceStart}><MathPreview source={text} display /></div>;
+  if (lang === "mermaid") return <div data-source-start={sourceStart}><MermaidPreview source={text} /></div>;
 
   const kind =
     dataRender === "raw-html"
@@ -149,7 +168,7 @@ function CodeBlock({
           : null;
 
   return (
-    <div className={`codeblock kind-${kind}`}>
+    <div data-source-start={sourceStart} className={`codeblock kind-${kind}`}>
       {(kind === "code" || kind === "plain") && (
         <div className="codeblock-head">
           <span>{lang ?? "text"}</span>
@@ -186,7 +205,7 @@ function CodeBlock({
 // Reader
 // ---------------------------------------------------------------------------
 
-function ReaderInner({ content, docPath, onOpenLocal, onOpenExternal, scrollRef }: ReaderProps) {
+function ReaderInner({ content, docPath, onOpenLocal, onOpenExternal, scrollRef, showFrontmatter = true }: ReaderProps) {
   const frontmatter = useMemo(() => parseFrontmatter(content), [content]);
 
   const components: Components = useMemo(
@@ -203,15 +222,19 @@ function ReaderInner({ content, docPath, onOpenLocal, onOpenExternal, scrollRef 
             : Array.isArray(cls)
               ? (/language-(\w+)/.exec((cls as string[]).join(" "))?.[1] ?? null)
               : null;
+        const rawStart = node?.properties?.["data-source-start"] ?? codeEl.properties?.["data-source-start"];
+        const sourceStart = rawStart === undefined ? undefined : Number(rawStart);
         return (
           <CodeBlock
             text={hastText(n.children?.[0])}
             lang={lang}
             dataRender={codeEl.properties?.["data-render"] as string | undefined}
+            sourceStart={sourceStart !== undefined && Number.isFinite(sourceStart) ? sourceStart : undefined}
           />
         );
       },
-      code({ children, ...rest }) {
+      code({ children, node, ...rest }) {
+        if (node?.properties?.["data-render"] === "math-inline") return <MathPreview source={String(children)} />;
         // Only inline code reaches here (pre consumes fenced blocks).
         return (
           <code className="inline-code" {...rest}>
@@ -258,7 +281,7 @@ function ReaderInner({ content, docPath, onOpenLocal, onOpenExternal, scrollRef 
 
   return (
     <div className="reader" ref={scrollRef}>
-      {frontmatter && frontmatter.pairs.length > 0 && (
+      {showFrontmatter && frontmatter && frontmatter.pairs.length > 0 && (
         <div className="frontmatter-card">
           {frontmatter.pairs.map((p) => (
             <div key={p.key} className="fm-row">
@@ -269,7 +292,7 @@ function ReaderInner({ content, docPath, onOpenLocal, onOpenExternal, scrollRef 
         </div>
       )}
       <ReactMarkdown
-        remarkPlugins={readerRemarkPlugins as never}
+        remarkPlugins={anchoredPlugins as never}
         rehypePlugins={readerRehypePlugins(docPath) as never}
         // Second pass through the SAME audited function (the pipeline
         // already enforced it): local-media: survives, everything exotic

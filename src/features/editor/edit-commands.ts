@@ -122,6 +122,7 @@ export function applyEditCommand(
   text: string,
   sel: Range,
   cmd: EditCommandId,
+  lineEnding = text.match(/\r\n|\r|\n/)?.[0] ?? "\n",
 ): EditResult | null {
   switch (cmd) {
     case "bold":
@@ -132,7 +133,7 @@ export function applyEditCommand(
       // Inline code wraps a single line's selection; a multi-line
       // selection becomes a fenced block instead.
       const inner = text.slice(sel.from, sel.to);
-      if (inner.includes("\n")) return fenceSelection(text, sel);
+      if (/[\r\n]/.test(inner)) return fenceSelection(text, sel, lineEnding);
       return toggleWrap(text, sel, "`");
     }
     case "link": {
@@ -176,7 +177,7 @@ export function applyEditCommand(
     case "quote":
       return toggleLinePrefix(text, sel, /^> /, "> ");
     case "fence":
-      return fenceSelection(text, sel);
+      return fenceSelection(text, sel, lineEnding);
     case "task":
       return taskCommand(text, sel);
   }
@@ -260,7 +261,7 @@ function taskCommand(text: string, sel: Range): EditResult {
   return { text: result, selection: remap(text, result, sel) };
 }
 
-function fenceSelection(text: string, sel: Range): EditResult {
+function fenceSelection(text: string, sel: Range, ending: string): EditResult {
   let inner = text.slice(sel.from, sel.to);
   let from = sel.from;
   let to = sel.to;
@@ -271,9 +272,9 @@ function fenceSelection(text: string, sel: Range): EditResult {
     to = line.to;
   }
   const newText =
-    text.slice(0, from) + "```\n" + inner + "\n```" + text.slice(to);
+    text.slice(0, from) + "```" + ending + inner + ending + "```" + text.slice(to);
   return {
     text: newText,
-    selection: { from: from + 4, to: from + 4 + inner.length },
+    selection: { from: from + 3 + ending.length, to: from + 3 + ending.length + inner.length },
   };
 }

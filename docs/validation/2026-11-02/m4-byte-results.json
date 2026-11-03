@@ -1,0 +1,14 @@
+{
+  "exactIndependentByteExpectation": true,
+  "documentSha256": "64eeebc5b03825a566b8d11bc1455015ef16c0725caf6d5794be418b343fc362",
+  "imagePath": "assets/image-1793654265866433000-0.png",
+  "newImageBytes": 70,
+  "existingImagesUnchanged": true,
+  "remainingRecoveryRecords": 0,
+  "checkerboardProbeImage": "assets/image-1793656797808899000-0.png",
+  "checkerboardDimensions": [
+    20,
+    20
+  ],
+  "probeOriginalReferencePreserved": true
+}

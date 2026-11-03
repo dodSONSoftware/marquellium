@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Marquellium
+Comment=Local-first Markdown viewer and editor
+Exec=markdown-viewer %F
+Icon=markdown-viewer
+Terminal=false
+Categories=Office;TextEditor;
+MimeType=text/markdown;text/plain;
+StartupWMClass=markdown-viewer
+libgtk-3-0:arm64	3.24.38-2~deb12u3
+libwebkit2gtk-4.1-0:arm64	2.50.6-1~deb12u2
+marquellium	0.1.0

@@ -7,7 +7,7 @@ import { prepareLocalizedEdit } from "./localized-edit";
 import type { ByteOp } from "./ops";
 import { assertCurrentSourceMap, type DocumentSourceMap, type MappedBlock, type SourceSnapshot } from "./source-map";
 
-export type DraftKind = "table" | "mermaid" | "source";
+export type DraftKind = "table" | "mermaid" | "math" | "source";
 export interface DraftOpening {
   baseRevision: number;
   startByte: number;
@@ -27,6 +27,7 @@ export interface DraftLease {
 export interface DraftValidation { valid: boolean; diagnostics: readonly string[] }
 export type DraftObservation = { snapshot: SourceSnapshot } | { lease: DraftLease | null } | { error: string };
 export interface DraftPort {
+  resume?(docId: string, token: string): Promise<DraftLease>;
   snapshot(docId: string): Promise<SourceSnapshot>;
   info(docId: string): Promise<DraftLease | null>;
   acquire(docId: string, opening: DraftOpening): Promise<DraftLease>;
@@ -111,11 +112,29 @@ export class DraftSession {
     return session;
   }
 
+  static async resume(map: DocumentSourceMap, block: MappedBlock, port: DraftPort, validate: DraftValidator): Promise<DraftSession> {
+    const snapshot = Object.freeze({ ...await port.snapshot(map.snapshot.docId) });
+    assertCurrentSourceMap(map, snapshot);
+    const lease = await port.info(snapshot.docId);
+    const index = new ByteIndex(snapshot.text);
+    if (!port.resume || !map.blocks.includes(block) || !lease || lease.ownerWindow !== null || lease.opening.baseRevision !== snapshot.revision ||
+        lease.opening.startByte !== index.byteOffset(block.range.from) || lease.opening.endByte !== index.byteOffset(block.range.to) || lease.opening.openingText !== block.source) {
+      throw new Error("Recovered draft does not match its base; preserve it as a Source copy.");
+    }
+    const owned = await port.resume(snapshot.docId, lease.token);
+    const session = new DraftSession(owned, snapshot, block, port, validate);
+    session.unwatch = port.watch(snapshot.docId, (event) => session.observe(event));
+    session.revalidate();
+    return session;
+  }
+
   get state(): EditorState {
     if (!this.editor) throw new Error("draft history was destroyed");
     return this.editor;
   }
   get text(): string { return this.state.doc.toString(); }
+  get docId(): string { return this.snapshot.docId; }
+  get token(): string { return this.lease.token; }
   get openingText(): string { return this.block.source; }
   get modified(): boolean { return !this.closed && this.text !== this.openingText; }
   get closed(): boolean { return this.editor === null; }

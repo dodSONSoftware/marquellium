@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { invoke } from "@tauri-apps/api/core";
 import type { DraftOpening } from "../core/draft-session";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,11 @@ const events = vi.hoisted(() => ({
     handler: (event: { payload: unknown }) => void;
     target?: { kind: string; label: string };
   }[],
+}));
+
+const createdWindows = vi.hoisted(() => [] as string[]);
+vi.mock("@tauri-apps/api/webviewWindow", () => ({
+  WebviewWindow: class { constructor(label: string) { createdWindows.push(label); } },
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => null) }));
@@ -43,12 +49,14 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 import {
   native,
+  openNewWindow,
   EV_MENU_COMMAND,
   EV_WINDOW_CLOSE_REQUESTED,
   onMenuCommand,
   onWindowCloseRequested,
   onDocumentSaved,
   EV_DOC_SAVED,
+  onLifecycleRequest,
 } from "./native";
 
 // Model explicit Window emission: an unscoped (Any) subscription would
@@ -68,6 +76,17 @@ beforeEach(() => {
 });
 
 describe("window-scoped native events", () => {
+  it("routes lifecycle owner requests only to their target and includes the exact selected documents", async () => {
+    events.label = "main";
+    const first = vi.fn(); const stopFirst = await onLifecycleRequest(first);
+    events.label = "visual-owner";
+    const second = vi.fn(); const stopSecond = await onLifecycleRequest(second);
+    emitToWindow("visual-owner", "lifecycle-request", { id: 1, action: "resolve-draft", body: {} });
+    expect(first).not.toHaveBeenCalled(); expect(second).toHaveBeenCalledOnce();
+    await native.lifecycle.begin("tab-switch", ["affected"]);
+    expect(invoke).toHaveBeenLastCalledWith("lifecycle_begin", { trigger: "tab-switch", docIds: ["affected"] });
+    stopFirst(); stopSecond();
+  });
   it("delivers document save metadata to every window viewing the shared registry", async () => {
     const first = vi.fn(), second = vi.fn();
     events.label = "main";
@@ -129,4 +148,14 @@ describe("owner-derived draft command facade", () => {
     await native.documents.applyLocalized("doc", 4, []);
     expect(invoke).toHaveBeenLastCalledWith("documents_apply_localized", { docId: "doc", baseRevision: 4, ops: [] });
   });
+});
+
+it("opens multiple independent windows with identities covered by the native capability", async () => {
+  createdWindows.length = 0;
+  await openNewWindow(); await openNewWindow(); await openNewWindow();
+  expect(new Set(createdWindows).size).toBe(3);
+  expect(createdWindows.every((label) => label.startsWith("window-"))).toBe(true);
+  const capability = JSON.parse(readFileSync("src-tauri/capabilities/default.json", "utf8")) as { windows: string[] };
+  expect(capability.windows).toContain("window-*");
+  expect(capability.windows).not.toContain("*");
 });

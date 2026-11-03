@@ -1,8 +1,10 @@
+import { renderMath } from "../../../core/render/math";
+import { createSourceMap } from "../../../core/source-map";
 import { invoke } from "@tauri-apps/api/core";
 import type { DraftValidation } from "../../../core/draft-session";
-import { mermaidBody, validateSourcePreview, validateTable } from "./policy";
+import { mathBody, mermaidBody, validateSourcePreview, validateTable } from "./policy";
 
-export interface PreviewResult { kind: "table" | "mermaid" | "source"; source: string; svg?: string }
+export interface PreviewResult { kind: "table" | "mermaid" | "math" | "source"; source: string; svg?: string }
 export type MermaidRenderer = (source: string, signal: AbortSignal) => Promise<string>;
 let nextRequest = 0;
 let renderTail: Promise<unknown> = Promise.resolve();
@@ -47,7 +49,12 @@ export class PreviewController {
       let svg: string | undefined;
       if (this.kind === "table") validateTable(text);
       else if (this.kind === "mermaid") svg = await this.renderer(mermaidBody(text), request.signal);
-      else validateSourcePreview(text);
+      else if (this.kind === "math") {
+        validateSourcePreview(text);
+        const map = createSourceMap({ docId: "math", revision: 0, text });
+        if (map.blocks.length !== 1 || map.blocks[0]?.node.type !== "math") throw new Error("Draft must contain exactly one display math block");
+        renderMath(mathBody(text), true);
+      } else validateSourcePreview(text);
       if (this.stopped || generation !== this.generation) return { valid: false, diagnostics: ["obsolete preview"] };
       this.result = { kind: this.kind, source: text, ...(svg === undefined ? {} : { svg }) };
       for (const listener of this.listeners) listener();

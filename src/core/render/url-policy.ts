@@ -10,7 +10,8 @@
  *  - `#fragment`            in-document navigation
  *  - relative references    resolved against the containing document
  *                           (FR-023: never the process working directory)
- *  - `local-media:`         scoped custom protocol (Rust, T3)
+ *  - `local-media:`         scoped custom protocol (Rust, T3), including
+ *                           its exact WebView2 local-media.localhost mapping
  *  - `http:` / `https:`     links only — open in the system browser on
  *                           explicit user click; NEVER loaded by the webview
  *  - `mailto:`              links only
@@ -71,6 +72,10 @@ export function classifyUrl(rawUrl: string): UrlKind {
   const forScheme = decodeEntities(rawUrl.replace(/[\u0000- ]/g, ""));
   if (forScheme === "") return "blocked";
   if (forScheme.startsWith("#")) return "fragment";
+
+  // WebView2 maps registered custom protocols onto this exact loopback origin.
+  // Rust still canonicalizes and scope-checks every request.
+  if (/^https?:\/\/local-media\.localhost\//.test(rawUrl)) return "localMedia";
 
   const schemeMatch = SCHEME_RE.exec(forScheme);
   const scheme = schemeMatch?.[1]?.toLowerCase();

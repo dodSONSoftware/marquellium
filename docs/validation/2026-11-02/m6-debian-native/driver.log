@@ -1,0 +1,10 @@
+Error serving connection: hyper::Error(User(Service), client error (Connect)
+
+Caused by:
+    0: tcp connect error
+    1: Connection refused (os error 111))
+Openbox-Message: Unable to find a valid menu file "/var/lib/openbox/debian-menu.xml"
+
+(markdown-viewer:12331): dbind-WARNING **: 02:44:38.606: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+close-flow quit focus=[("window-a45da3ed-2e66-496a-8917-ccbe7e95543b", Ok(false)), ("main", Ok(true))]
+close-flow quit focus=[("window-a45da3ed-2e66-496a-8917-ccbe7e95543b", Ok(false)), ("main", Ok(true))]

@@ -1,3 +1,5 @@
+import { SourceBuffer } from "../../core/source-buffer";
+import { type ViewContext, restoreContext } from "../../core/view-context";
 /**
  * Source mode on CodeMirror 6 (FR-011, FR-040, ADR-006/007/010).
  *
@@ -52,6 +54,7 @@ const MD_HIGHLIGHT = HighlightStyle.define([
 ]);
 
 export interface SourceEditorProps {
+  spellcheck?: boolean;
   docId: string;
   /** Registry-truth content for this document (the store mirror). */
   content: string;
@@ -60,9 +63,33 @@ export interface SourceEditorProps {
   onView?: (view: EditorView | null) => void;
 }
 
-export function SourceEditor({ docId, content, store, onView }: SourceEditorProps) {
+const buffers = new WeakMap<EditorView, SourceBuffer>();
+export function sourceContext(view: EditorView): ViewContext {
+  const buffer = buffers.get(view) ?? new SourceBuffer(view.state.doc.toString());
+  const selection = view.state.selection.main;
+  return { text: buffer.text, anchor: buffer.rawOffset(selection.anchor), head: buffer.rawOffset(selection.head) };
+}
+export function restoreSourceContext(view: EditorView, context: ViewContext): void {
+  const buffer = buffers.get(view) ?? new SourceBuffer(view.state.doc.toString());
+  const mapped = restoreContext(context, buffer.text);
+  const selection = { anchor: buffer.editorOffset(mapped.anchor), head: buffer.editorOffset(mapped.head) };
+  view.dispatch({ selection, effects: EditorView.scrollIntoView(selection.head, { y: "center" }) });
+}
+
+/** Translate scroll/navigation positions through the raw-ending adapter. */
+export function sourceScrollOffset(view: EditorView): number {
+  const offset = view.lineBlockAtHeight(Math.max(0, view.scrollDOM.scrollTop - view.documentPadding.top)).from;
+  return buffers.get(view)?.rawOffset(offset) ?? offset;
+}
+export function scrollSourceOffset(view: EditorView, rawOffset: number): void {
+  const offset = buffers.get(view)?.editorOffset(rawOffset) ?? rawOffset;
+  view.dispatch({ effects: EditorView.scrollIntoView(offset, { y: "start" }) });
+}
+
+export function SourceEditor({ docId, content, store, onView, spellcheck = true }: SourceEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const bufferRef = useRef(new SourceBuffer(content));
   const indexRef = useRef<ByteIndex | null>(null);
   // The last mirror content the view has reconciled with. While a local
   // group is in flight the mirror is older than the view's document; that
@@ -124,8 +151,11 @@ export function SourceEditor({ docId, content, store, onView }: SourceEditorProp
       });
       const index = indexRef.current;
       if (!index) return;
-      const ops = changesToByteOps(index, changes);
-      const newText = update.state.doc.toString();
+      const converted = bufferRef.current.changes(changes);
+      const ops = changesToByteOps(index, converted.changes);
+      const newText = converted.next.text;
+      bufferRef.current = converted.next;
+      buffers.set(update.view, converted.next);
       if (ops === null) {
         // A boundary split a surrogate pair: minimal ops are impossible,
         // fall back to a full-buffer replace against the registry state.
@@ -143,24 +173,27 @@ export function SourceEditor({ docId, content, store, onView }: SourceEditorProp
       } else {
         store.editGroup(docId, ops);
       }
-      index.sync(newText, changes);
+      index.sync(newText, converted.changes);
     });
 
     const view = new EditorView({
       parent: host,
       state: EditorState.create({
-        doc: content,
+        doc: bufferRef.current.normalized,
         extensions: [
+          EditorView.contentAttributes.of({ spellcheck: String(spellcheck), "aria-label": "Markdown source" }),
           EditorView.lineWrapping,
           EditorState.tabSize.of(4),
-          markdown(),
-          syntaxHighlighting(MD_HIGHLIGHT, { fallback: true }),
+          // A megabyte-long line makes the Markdown parser synchronous per key.
+          // Keep it editable as plain Source; ordinary documents retain highlighting.
+          ...(bufferRef.current.normalized.split("\n").some((line) => line.length > 8192) ? [] : [markdown(), syntaxHighlighting(MD_HIGHLIGHT, { fallback: true })]),
           search({ top: true }),
           commandKeymap,
           updateListener,
         ],
       }),
     });
+    buffers.set(view, bufferRef.current);
     view.focus();
     viewRef.current = view;
     indexRef.current = new ByteIndex(content);
@@ -178,6 +211,8 @@ export function SourceEditor({ docId, content, store, onView }: SourceEditorProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docId]);
 
+  useEffect(() => { viewRef.current?.contentDOM.setAttribute("spellcheck", String(spellcheck)); }, [spellcheck]);
+
   // Reconcile with the mirror (external changes: undo/redo, other windows,
   // conflict resync). Local in-flight groups leave the mirror stale; that
   // is exactly `content === lastReconciled` and is ignored.
@@ -185,7 +220,7 @@ export function SourceEditor({ docId, content, store, onView }: SourceEditorProp
     const view = viewRef.current;
     const index = indexRef.current;
     if (!view || !index) return;
-    const docText = view.state.doc.toString();
+    const docText = bufferRef.current.text;
     if (content === docText) {
       lastReconciledRef.current = content;
       return;
@@ -198,8 +233,11 @@ export function SourceEditor({ docId, content, store, onView }: SourceEditorProp
     const projected = store.projectedText(docId);
     if (projected !== null && projected === docText) return;
     const sel = view.state.selection.main;
-    const change = diffRange(docText, content);
-    const mapped = mapPositions(docText.length, change, sel.from, sel.to);
+    const nextBuffer = new SourceBuffer(content);
+    const change = diffRange(view.state.doc.toString(), nextBuffer.normalized);
+    const mapped = mapPositions(view.state.doc.length, change, sel.from, sel.to);
+    bufferRef.current = nextBuffer;
+    buffers.set(view, nextBuffer);
     suppressRef.current = true;
     try {
       view.dispatch({

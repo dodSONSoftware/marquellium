@@ -6,6 +6,7 @@ use serde::Deserialize;
 pub enum DraftKind {
     Table,
     Mermaid,
+    Math,
     Source,
 }
 
@@ -27,7 +28,7 @@ pub struct DraftUpdate {
     pub valid: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftLease {
     pub doc_id: String,
@@ -265,5 +266,41 @@ impl DocumentRegistry {
         .map_err(|error| error.to_string())?;
         entry.draft = None;
         Ok(Some(record))
+    }
+}
+
+impl DocumentRegistry {
+    pub fn discard_orphan(&self, id: &str, token: &str) -> Result<(), String> {
+        let mut inner = self.lock();
+        let entry = inner.docs.get_mut(id).ok_or("unknown recovered document")?;
+        if !entry
+            .draft
+            .as_ref()
+            .is_some_and(|lease| lease.owner_window.is_none() && lease.token == token)
+        {
+            return Err("recovered draft ownership changed".into());
+        }
+        entry.draft = None;
+        Ok(())
+    }
+
+    pub fn restore_draft(&self, id: &str, mut lease: DraftLease) -> Result<(), String> {
+        let mut inner = self.lock();
+        let entry = inner.docs.get_mut(id).ok_or("unknown recovered document")?;
+        if entry.draft.is_some()
+            || entry
+                .content
+                .get(lease.opening.start_byte as usize..lease.opening.end_byte as usize)
+                != Some(lease.opening.opening_text.as_str())
+        {
+            return Err("recovered draft range does not match its canonical base".into());
+        }
+        lease.token = format!("recovered-{id}");
+        lease.doc_id = id.into();
+        lease.opening.base_revision = entry.revision;
+        lease.owner_window = None;
+        lease.valid = false;
+        entry.draft = Some(lease);
+        Ok(())
     }
 }

@@ -1,3 +1,5 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { resolveMediaPath, portableMediaUri } from "./media-path";
 /**
  * The unified/remark/rehype render pipeline (ADR-003).
  *
@@ -15,9 +17,7 @@
  *    so golden output is a faithful record of what the policy must handle.
  */
 import rehypeStringify from "rehype-stringify";
-import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
-import { unified } from "unified";
 
 import { createMarkdownParser, markdownSyntaxPlugins } from "./parser";
 
@@ -102,11 +102,13 @@ export const rawHtmlToCode: Plugin = () => (tree: MNode) => {
               type: "code",
               lang: "html",
               value,
+              position: n.position,
               data: { hProperties: { "data-render": "raw-html" } },
             }
           : {
               type: "inlineCode",
               value,
+              position: n.position,
               data: { hProperties: { "data-render": "raw-html-inline" } },
             };
       } else if (n.children) {
@@ -132,12 +134,14 @@ export const mathToSource: Plugin = () => (tree: MNode) => {
           type: "code",
           lang: "tex",
           value: n.value ?? "",
+          position: n.position,
           data: { hProperties: { "data-render": "math-block" } },
         };
       } else if (n.type === "inlineMath") {
         children[i] = {
           type: "inlineCode",
           value: n.value ?? "",
+          position: n.position,
           data: { hProperties: { "data-render": "math-inline" } },
         };
       } else if (n.children) {
@@ -197,63 +201,19 @@ export const assignHeadingIds: Plugin = () => (tree: MNode, file: VFileLike) => 
 //    remote/blocked images become an inert placeholder (no network, T4).
 // ---------------------------------------------------------------------------
 
-/** Collapse `.`/`..` segments (Rust re-canonicalizes and scope-checks). */
-function resolveDots(segments: string[]): string[] {
-  const out: string[] = [];
-  for (const s of segments) {
-    if (s === "" || s === ".") continue;
-    if (s === "..") out.pop();
-    else out.push(s);
-  }
-  return out;
-}
-
-/**
- * Resolve an image src into a `local-media:` URI, or null when it must not
- * load (remote / blocked / no base document).
- */
+/** Resolve platform path spelling, then use Tauri's platform-specific protocol URL. */
 export function imageSrc(original: string, docPath: string | null): string | null {
   const kind = classifyUrl(original);
   if (kind === "localMedia") return original;
-  if (kind !== "relative") return null;
-  const decoded = decodeURIComponent(original);
-  if (decoded.startsWith("/")) {
-    // Absolute ref: map 1:1 to an absolute local-media: URI. The Rust
-    // handler canonicalizes and scope-checks it (outside scope → 404,
-    // fail closed). Never silently re-root it under the document dir.
-    if (!docPath) return null;
-    const joined = resolveDots(decoded.split("/").slice(1));
-    const encoded = joined
-      .map((s) =>
-        s
-          .split("/")
-          .map((seg) => encodeURIComponent(seg))
-          .join("/"),
-      )
-      .join("/");
-    return `local-media:/${encoded}`;
-  }
-  // FR-023: relative to the CONTAINING DOCUMENT's directory, never the
-  // process working directory.
-  if (!docPath) return null;
-  const dir = docPath.endsWith("/")
-    ? docPath
-    : docPath.slice(0, docPath.lastIndexOf("/") + 1);
-  const joined = resolveDots(dir.split("/").concat(decoded.split("/")));
-  const encoded = joined
-    .map((s) =>
-      s
-        .split("/")
-        .map((seg) => encodeURIComponent(seg))
-        .join("/"),
-    )
-    .join("/");
-  // Absolute URI: docPath's directory is absolute, so the join is too —
-  // the Rust handler requires an absolute path (fail closed otherwise).
-  return `local-media:/${encoded}`;
+  if (kind !== "relative" || !docPath) return null;
+  const path = resolveMediaPath(original, docPath);
+  if (!path) return null;
+  const internals = typeof window !== "undefined" ? (window as unknown as { __TAURI_INTERNALS__?: { convertFileSrc?: unknown } }).__TAURI_INTERNALS__ : undefined;
+  return portableMediaUri(path, typeof internals?.convertFileSrc === "function" ? convertFileSrc : undefined);
 }
 
 function imageReason(original: string): string {
+  try { decodeURIComponent(original); } catch { return "Image path has invalid URI encoding"; }
   const kind = classifyUrl(original);
   if (kind === "remote") return "Remote image — disabled (privacy)";
   if (kind === "blocked") return "Image blocked by URL policy";
@@ -334,9 +294,7 @@ export function outlineOf(markdown: string): OutlineItem[] {
 
 /** Parse to MDAST only (no hast) — for outline and future source maps. */
 export function createMdast(markdown: string): MNode {
-  const parser = unified().use(remarkParse as never);
-  const file = parser.runSync(parser.parse(markdown));
-  return file as unknown as MNode;
+  return createMarkdownParser().parse(markdown) as unknown as MNode;
 }
 
 /**

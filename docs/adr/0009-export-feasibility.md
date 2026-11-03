@@ -41,3 +41,11 @@ v1.0 **must** export HTML, PDF, and DOCX (§1B.6). The PRD makes the PDF/DOCX ba
 - `ExportService` (Rust) owns DOCX generation and file writing; HTML generation lives in TS (pipeline reuse) and is handed to Rust for asset embedding + write; PDF is a print pass over the preview DOM.
 - `fixtures/export/` (created in M0) is the binding corpus for AT-115 across all three formats.
 - Export UI (M5) shows the documented limitation list so users are never surprised (PRD: "clearly document platform/format limitations").
+
+## M5 implementation refinement (2026-11-02)
+
+The shared TypeScript dialect parser produces bounded typed DOCX blocks; Rust validates the payload, generates OOXML and owns all asset reads and atomic writes. This deliberately replaces the proposed second `pulldown-cmark` parser: it keeps frontmatter/extensions/reference handling aligned with Read/Visual and avoids a second dialect implementation. The native generator uses a small stored-method ZIP writer (CRC32 and a central directory), independently checked with Python's standard ZIP/XML readers and macOS `textutil`. No compression dependency was necessary.
+
+HTML and print use KaTeX's native MathML output rather than the originally described SVG output; KaTeX does not provide the SVG backend described in the spike. This removes font/network dependencies, works in the validated macOS WebKit print path, and is an explicit recipient-browser compatibility limit for HTML. Mermaid remains an embedded static SVG image. Raster assets are embedded from the document's folder or the current picker-granted workspace; unsupported/missing assets retain visible source/alt text. DOCX currently embeds PNG; other raster formats retain a labeled fallback. Math and Mermaid DOCX fallbacks remain labeled source blocks. Lists use visible numbering/task marker text; DOCX layout/interactive list semantics and anchor bookmarks are not claimed to match Word's native features.
+
+PDF uses the native Print / Save PDF dialog in a dedicated lifecycle participant window. Page controls are native; a fixed page-number template and Windows/Linux printing are not claimed. Source bytes, draft leases and document history are never export output buffers. Export UI exposes these limitations before writing.

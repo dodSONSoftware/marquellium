@@ -5,6 +5,58 @@ use crate::documents::service::{
 use std::path::{Path, PathBuf};
 
 impl DocumentRegistry {
+    pub fn reload_from_disk(
+        &self,
+        id: &str,
+        expected: u64,
+        allow_dirty: bool,
+    ) -> Result<super::TransactionRecord, String> {
+        let mut inner = self.lock();
+        let entry = inner.docs.get_mut(id).ok_or("unknown document")?;
+        if entry.draft.is_some() {
+            return Err("resolve the active draft before reloading".into());
+        }
+        if entry.revision != expected || (!allow_dirty && entry.dirty) {
+            return Err("document changed before reload; preserve its current content".into());
+        }
+        let path = entry
+            .path
+            .as_ref()
+            .ok_or("untitled documents cannot be reloaded")?;
+        let (content, bom, newline, revision) =
+            crate::documents::service::open_document(path, false).map_err(|e| e.to_string())?;
+        let transaction = crate::documents::WireTransaction {
+            base_revision: entry.revision,
+            ops: vec![crate::documents::DocOp {
+                start_byte: 0,
+                end_byte: entry.content.len() as u32,
+                text: content,
+            }],
+        };
+        let record = Self::apply_entry(entry, &transaction).map_err(|e| e.to_string())?;
+        entry.bom = bom;
+        entry.newline = newline;
+        entry.saved_revision = Some(revision.clone());
+        entry.disk_revision = Some(revision);
+        entry.dirty = false;
+        Ok(record)
+    }
+
+    pub fn create_recovered(
+        &self,
+        content: String,
+        bom: bool,
+        newline: super::NewlinePolicy,
+    ) -> String {
+        let id = self.create_untitled();
+        let mut inner = self.lock();
+        let entry = inner.docs.get_mut(&id).expect("new recovered document");
+        entry.content = content;
+        entry.bom = bom;
+        entry.newline = newline;
+        entry.dirty = true;
+        id
+    }
     /// Serialize the canonical snapshot, disk replacement, and saved metadata
     /// with edits and watcher observations. No observer sees a half-saved state.
     pub fn save_to_disk(
@@ -132,6 +184,35 @@ mod tests {
         assert_eq!(snapshot.content, "local change");
         assert_eq!(snapshot.saved_disk_revision, saved);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "external change");
+    }
+
+    #[test]
+    fn reload_refuses_stale_revisions_dirty_auto_reload_and_active_drafts() {
+        let (_dir, path, registry, id) = opened();
+        edit(&registry, &id, "local change");
+        std::fs::write(&path, "external change").unwrap();
+        assert!(registry.reload_from_disk(&id, 1, false).is_err());
+        assert!(registry.reload_from_disk(&id, 0, true).is_err());
+        let lease = registry
+            .acquire_draft(
+                &id,
+                "owner",
+                super::super::DraftOpening {
+                    base_revision: 1,
+                    start_byte: 0,
+                    end_byte: 12,
+                    opening_text: "local change".into(),
+                    kind: super::super::DraftKind::Source,
+                },
+            )
+            .unwrap();
+        assert!(registry.reload_from_disk(&id, 1, true).is_err());
+        assert_eq!(registry.snapshot(&id).unwrap().content, "local change");
+        registry.release_draft(&id, "owner", &lease.token).unwrap();
+        registry.reload_from_disk(&id, 1, true).unwrap();
+        assert_eq!(registry.snapshot(&id).unwrap().content, "external change");
+        registry.undo(&id).unwrap();
+        assert_eq!(registry.snapshot(&id).unwrap().content, "local change");
     }
 
     #[test]

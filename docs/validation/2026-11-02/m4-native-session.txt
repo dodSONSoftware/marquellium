@@ -1,0 +1,21 @@
+close-flow quit source=native-menu
+close-flow quit focus=[("window-081c5982-cf18-4faf-9dfc-7b793f020216", Ok(true)), ("main", Ok(false))]
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(false)), ("window-081c5982-cf18-4faf-9dfc-7b793f020216", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow window=window-081c5982-cf18-4faf-9dfc-7b793f020216 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed

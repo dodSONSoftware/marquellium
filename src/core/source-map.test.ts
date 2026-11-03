@@ -17,9 +17,10 @@ describe("raw source mapping", () => {
     ]);
     expect(map.blocks.find((b) => b.node.type === "table")?.capability).toBe("table-candidate");
     expect(map.blocks.find((b) => b.node.type === "code")?.capability).toBe("mermaid-draft");
-    for (const type of ["yaml", "math", "html", "blockquote", "list"]) {
+    for (const type of ["yaml", "math", "html", "blockquote"]) {
       expect(map.blocks.find((b) => b.node.type === type)?.capability).toBe("protected");
     }
+    for (const type of ["list"]) expect(map.blocks.find((b) => b.node.type === type)?.capability).toBe("text-candidate");
     for (const marker of ["[[Another", ":::custom", "Term", "% vendor"]) {
       expect(map.blocks.find((b) => b.source.includes(marker))?.capability).toBe("protected");
     }

@@ -65,11 +65,10 @@ export interface RecoveryInfo {
 }
 
 export interface RecoveryPayload {
-  key: string;
-  path: string | null;
-  bytes: number[];
-  revision: number;
-  draft: string | null;
+  docId: string;
+  hasDraft: boolean;
+  conflicted: boolean;
+  draftCopyId: string | null;
 }
 
 export interface Settings {
@@ -77,6 +76,8 @@ export interface Settings {
   appearance: "light" | "dark" | "system";
   defaultMode: "read" | "source" | "split" | "visual";
   spellcheckEnabled: boolean;
+  showFrontmatter?: boolean;
+  readerFont?: string; editorFont?: string; fontSize?: number; editorFontSize?: number; lineSpacing?: number; maxWidth?: number;
   sidebar: { visible: boolean; width: number; section: "files" | "toc" };
 }
 
@@ -97,7 +98,34 @@ export interface SessionState {
 
 // --- commands -------------------------------------------------------------
 
+export interface WorkspaceSearchResults { matches: { path: string; line: number; preview: string }[]; skippedFiles: number; truncated: boolean }
+export interface WorkspaceEntry { name: string; path: string; isDir: boolean; isSymlink: boolean; size: number }
+export interface FileOpenRequest { id: number; path: string | null; error: string | null }
+export const onFileOpenPending = (callback: () => void) =>
+  listen("file-open-pending", callback, { target: { kind: "Window", label: getCurrentWindow().label } });
 export const native = {
+  fileOpen: {
+    next: () => invoke<FileOpenRequest | null>("file_open_next"),
+    ack: (id: number) => invoke<void>("file_open_ack", { id }),
+  },
+  export: {
+    image: (docId: string, href: string) => invoke<string>("export_image", { docId, href }),
+    save: (docId: string, format: "html" | "docx", html: string, blocks: import("../features/export/document").ExportBlock[]) => invoke<string | null>("export_save", { docId, format, html, blocks }),
+    preview: (html: string) => invoke<void>("export_preview", { html }),
+    previewContent: () => invoke<string>("export_preview_content"),
+    print: () => invoke<void>("export_print"),
+  },
+  workspace: {
+    root: () => invoke<string | null>("workspace_root"),
+    search: (query: string, exclusions: string[]) => invoke<WorkspaceSearchResults>("workspace_search", { query, exclusions }),
+    list: (root: string, exclusions: string[]) => invoke<WorkspaceEntry[]>("workspace_list_dir", { root, exclusions }),
+    link: (docId: string, href: string, readContent = false) => invoke<{ path: string; fragment: string | null; content: string | null }>("workspace_link", { docId, href, readContent }),
+  },
+  assets: { pasteImage: (docId: string, folder: string) => invoke<string>("assets_paste_image", { docId, folder }) },
+  lifecycle: {
+    begin: (trigger: LifecycleTrigger, docIds: string[] = []) => invoke<boolean>("lifecycle_begin", { trigger, docIds }),
+    reply: (id: number, value: unknown, error?: string) => invoke<void>("lifecycle_reply", { id, value, error: error ?? null }),
+  },
   appInfo: () =>
     invoke<{ name: string; version: string; dataDir: string }>("app_info"),
 
@@ -136,8 +164,8 @@ export const native = {
     redo: (docId: string) =>
       invoke<DocumentUpdate | null>("documents_redo", { docId }),
     save: (docId: string) => invoke<SaveResult>("documents_save", { docId }),
-    reload: (docId: string) =>
-      invoke<DocumentSnapshot>("documents_reload", { docId }),
+    reload: (docId: string, baseRevision: number) =>
+      invoke<DocumentSnapshot>("documents_reload", { docId, baseRevision }),
     saveAs: (docId: string, path: string) =>
       invoke<SaveResult>("documents_save_as", { docId, path }),
     applyLocalized: (docId: string, baseRevision: number, ops: DocOp[]) =>
@@ -163,7 +191,7 @@ export const native = {
   recovery: {
     list: () => invoke<RecoveryInfo[]>("recovery_list"),
     discard: (key: string) => invoke<void>("recovery_discard", { key }),
-    restore: (key: string) => invoke<RecoveryPayload>("recovery_restore", { key }),
+    restore: (key: string) => invoke<RecoveryPayload>("recovery_restore", { key, visual: true }),
   },
 
   settings: {
@@ -192,6 +220,19 @@ export const native = {
 // --- events ---------------------------------------------------------------
 
 export const EV_DOC_UPDATED = "document-updated";
+export type LifecycleTrigger = "quit" | "close-window" | "close-tab" | "mode-switch" | "tab-switch" | "reload-document";
+export interface LifecycleRequest {
+  id: number;
+  transaction: number;
+  action: "prepare" | "resolve-draft" | "discard-draft" | "resolve-canonical";
+  body: { displayName?: string; summary?: string[]; trigger?: LifecycleTrigger; lease?: DraftLease; snapshot?: DocumentSnapshot; token?: string; docId?: string };
+}
+export const onLifecycleRequest = (callback: (request: LifecycleRequest) => void) =>
+  listen<LifecycleRequest>("lifecycle-request", (event) => callback(event.payload), { target: { kind: "Window", label: getCurrentWindow().label } });
+export const onLifecycleRelease = (callback: (transaction: number) => void) =>
+  listen<{ transaction: number }>("lifecycle-release", (event) => callback(event.payload.transaction), { target: { kind: "Window", label: getCurrentWindow().label } });
+export const onLifecycleError = (callback: (error: string) => void) =>
+  listen<string>("lifecycle-error", (event) => callback(event.payload), { target: { kind: "Window", label: getCurrentWindow().label } });
 export const EV_DOC_CHANGED_ON_DISK = "document-changed-on-disk";
 export const EV_DOC_SAVED = "document-saved";
 export const EV_MENU_COMMAND = "menu-command";
@@ -257,8 +298,8 @@ export async function onDragDrop(
 
 export async function openNewWindow(): Promise<WebviewWindow> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  return new WebviewWindow("window", {
-    title: "Markdown Viewer",
+  return new WebviewWindow(`window-${crypto.randomUUID()}`, {
+    title: "Marquellium",
     width: 1100,
     height: 750,
   });
@@ -273,7 +314,9 @@ export async function openVisualPrototype(docId: string): Promise<WebviewWindow>
   if (import.meta.env.VITE_M3V_VISUAL_PROTOTYPE !== "1") throw new Error("Visual prototype is not enabled in this build");
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
   return new WebviewWindow(`visual-${crypto.randomUUID()}`, {
-    title: "M3V Visual prototype", width: 1000, height: 750,
+    title: "Marquellium — M3V prototype", width: 1000, height: 750,
     url: `index.html?m3vDocument=${encodeURIComponent(docId)}`,
   });
 }
+
+export const onSettingsChanged = (callback: (settings: Settings) => void) => listen<Settings>("settings-changed", (event) => callback(event.payload));

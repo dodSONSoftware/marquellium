@@ -1,0 +1,16 @@
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(false)), ("print-1793663010540865000", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow window=print-1793663010540865000 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(false)), ("print-1793663408391725000", Ok(true))]
+close-flow window=print-1793663408391725000 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=print-1793664210686154000 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true))]
+close-flow window=main stage=Destroyed

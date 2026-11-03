@@ -28,6 +28,10 @@ export interface MappedNode {
   readonly exactText: boolean;
   readonly decodedText?: string;
   readonly depth?: number;
+  readonly value?: string;
+  readonly checked?: boolean | null;
+  readonly ordered?: boolean | null;
+  readonly start?: number | null;
   readonly align?: readonly ("left" | "right" | "center" | null)[];
   readonly children: readonly MappedNode[];
 }
@@ -62,6 +66,9 @@ interface ParseNode {
   value?: string;
   lang?: string | null;
   depth?: number;
+  checked?: boolean | null;
+  ordered?: boolean | null;
+  start?: number | null;
   align?: ("left" | "right" | "center" | null)[] | null;
   children?: ParseNode[];
   position?: { start: { offset?: number }; end: { offset?: number } };
@@ -101,13 +108,14 @@ function mapNode(node: ParseNode, snapshot: SourceSnapshot, parent: SourceRange,
     type: node.type, range: ownRange, source,
     exactText: node.type === "text" && source === node.value,
     decodedText: node.type === "text" ? node.value : undefined,
-    depth: node.depth,
+    depth: node.depth, value: node.value, checked: node.checked, ordered: node.ordered, start: node.start,
     align: node.align ? Object.freeze([...node.align]) : undefined,
     children: Object.freeze(children),
   });
 }
 
-const textNodeTypes = new Set(["paragraph", "heading", "text", "emphasis", "strong", "delete", "link", "inlineCode", "break"]);
+const textNodeTypes = new Set(["paragraph", "heading", "text", "emphasis", "strong", "delete", "link", "inlineCode", "break", "inlineMath", "image", "linkReference", "imageReference"]);
+const containerNodeTypes = new Set([...textNodeTypes, "list", "listItem", "blockquote"]);
 const tableNodeTypes = new Set([...textNodeTypes, "table", "tableRow", "tableCell"]);
 
 function containsUnknown(node: MappedNode, allowed: ReadonlySet<string>): boolean {
@@ -126,7 +134,7 @@ function classify(node: ParseNode, mapped: MappedNode): Pick<MappedBlock, "capab
   if (extensionSyntax(mapped.source)) {
     return { capability: "protected", reason: "possible unsupported extension syntax" };
   }
-  if ((node.type === "paragraph" || node.type === "heading") && !containsUnknown(mapped, textNodeTypes)) {
+  if (["paragraph", "heading", "list", "blockquote"].includes(node.type) && !containsUnknown(mapped, containerNodeTypes)) {
     return { capability: "text-candidate", reason: "only exact text leaves may be considered by a future edit adapter" };
   }
   if (node.type === "table" && !containsUnknown(mapped, tableNodeTypes)) {

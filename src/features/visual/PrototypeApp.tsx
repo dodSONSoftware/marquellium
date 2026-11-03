@@ -1,3 +1,5 @@
+import { undo as undoDraft, redo as redoDraft } from "@codemirror/commands";
+import { useLifecycle } from "../documents/useLifecycle";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DocumentStore } from "../documents/DocumentStore";
 import { native, onDocumentUpdated, onDocumentSaved, onWindowCloseRequested, onMenuCommand } from "../../services/native";
@@ -17,6 +19,9 @@ export function PrototypeApp({ docId }: { docId: string }) {
     activity.current = next;
     setBusy(!!next.opening || !!next.draft && !next.draft.closed || !!next.direct?.hasPending);
   }, []);
+  const lifecycle = useLifecycle(store, () => activity.current, setMessage, () => snapshot !== null);
+  const lifecycleRef = useRef(lifecycle);
+  lifecycleRef.current = lifecycle;
   useEffect(() => {
     const scope = subscriptionScope((error) => setMessage(String(error)));
     const unsubscribe = store.subscribe(() => {
@@ -26,9 +31,13 @@ export function PrototypeApp({ docId }: { docId: string }) {
     let disposed = false;
     let ready = false;
     let released = false;
-    let closing = false;
     scope.add(onMenuCommand((id) => {
       if (id === "save" || id === "save_as") void saveRef.current(id === "save_as");
+      else if (id.startsWith("history:")) {
+        const draft = activity.current.draft;
+        if (draft && !draft.closed) (id === "history:redo" ? redoDraft : undoDraft)({ state: draft.state, dispatch: (transaction) => draft.dispatch(transaction) });
+        else void (id === "history:redo" ? store.redo(docId) : store.undo(docId)).catch((error) => setMessage(String(error)));
+      }
       else setMessage("This prototype is pinned to one document. Use the Source window for navigation.");
     }));
     scope.add(onDocumentUpdated((update) => store.applyUpdate(update)));
@@ -36,24 +45,12 @@ export function PrototypeApp({ docId }: { docId: string }) {
       void store.refreshSavedDocument(docId).catch((error) => setMessage(`Save status refresh failed: ${error}`));
     }));
     scope.add(onWindowCloseRequested(() => {
-      if (closing) return;
-      closing = true;
-      void (async () => {
-        if (!ready || activity.current.opening) { setMessage("Wait for the editor to finish opening."); return; }
-        if ((activity.current.draft && !activity.current.draft.closed) || activity.current.direct?.hasPending) {
-          setMessage("Resolve the inline draft or pending text edit before closing this prototype."); return;
-        }
-        await store.flushAll();
-        if (store.isDirty(docId)) { setMessage("Save the applied document changes before closing this prototype."); return; }
-        if (!released) { await store.release(docId); released = true; }
-        try { await native.confirmWindowClose(); }
-        catch (error) { await native.documents.acquire(docId); released = false; throw error; }
-      })().catch((error) => setMessage(String(error))).finally(() => { closing = false; });
+      void lifecycleRef.current.begin("close-window");
     }));
     void store.attachDocument(docId).then(() => {
       ready = true;
       if (disposed && !released) { released = true; void store.release(docId).catch(() => {}); }
-      else setMessage("M3V development prototype. Inline drafts are not crash-persistent yet.");
+      else setMessage("M3V development prototype. Draft recovery is enabled. Resolve drafts before navigation or closing.");
     }).catch((error) => setMessage(String(error)));
     return () => { disposed = true; unsubscribe(); scope.dispose(); if (ready && !released) { released = true; void store.release(docId).catch(() => {}); } };
   }, [store, docId]);
@@ -70,13 +67,13 @@ export function PrototypeApp({ docId }: { docId: string }) {
     } catch (error) { setMessage(String(error)); }
   };
   saveRef.current = save;
-  return <main className="prototype-app">
-    <header className="prototype-toolbar"><strong>M3V Visual prototype</strong>
+  return <><main inert={lifecycle.blocked} className="prototype-app">
+    <header className="prototype-toolbar"><strong>Marquellium — M3V prototype</strong>
       <button disabled={busy} onClick={() => void save()}>Save applied changes</button>
       <button disabled={busy} onClick={() => void store.undo(docId).catch((error) => setMessage(String(error)))}>Undo document</button>
       <button disabled={busy} onClick={() => void store.redo(docId).catch((error) => setMessage(String(error)))}>Redo document</button>
     </header>
     <p role="status">{message}</p>
-    {snapshot && <VisualSurface snapshot={snapshot} store={store} onActivity={onActivity} />}
-  </main>;
+    {snapshot && <VisualSurface snapshot={snapshot} store={store} onActivity={onActivity} beforeOpen={(docId) => lifecycleRef.current.begin("mode-switch", [docId])} />}
+  </main>{lifecycle.dialog}</>;
 }

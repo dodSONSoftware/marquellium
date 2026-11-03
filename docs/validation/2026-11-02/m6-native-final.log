@@ -1,0 +1,41 @@
+PASS cold CLI open with spaces and Unicode
+PASS relative local image loads
+PASS KaTeX renders in native webview
+PASS Mermaid renders in native webview
+PASS second native window shares canonical document
+
+(markdown-viewer:12749): dbind-WARNING **: 02:44:39.714: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS second process hands relative path to focused window
+PASS file opening leaves other window tabs alone
+PASS explicit table draft opens
+
+(markdown-viewer:12930): dbind-WARNING **: 02:44:40.179: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS incoming file request uses draft navigation coordinator
+PASS Cancel retains draft and offers explicit request retry
+PASS dismissal preserves draft and document
+
+(markdown-viewer:12948): dbind-WARNING **: 02:44:40.257: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS installed desktop Open With forwards spaces and Unicode
+PASS native Quit command coordinates both windows before closing
+PASS Quit Cancel keeps both native windows and the draft
+PASS second Quit still prompts for the retained draft
+PASS discarding the disposable draft quits the native process
+PASS cold CLI open with spaces and Unicode
+PASS relative local image loads
+PASS KaTeX renders in native webview
+PASS Mermaid renders in native webview
+PASS second native window shares canonical document
+
+(markdown-viewer:13659): dbind-WARNING **: 02:44:42.907: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS second process hands relative path to focused window
+PASS file opening leaves other window tabs alone
+PASS explicit table draft opens
+
+(markdown-viewer:13940): dbind-WARNING **: 02:44:43.517: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+PASS incoming file request uses draft navigation coordinator
+PASS Cancel retains draft and offers explicit request retry
+PASS dismissal preserves draft and document
+PASS native Quit command coordinates both windows before closing
+PASS Quit Cancel keeps both native windows and the draft
+PASS second Quit still prompts for the retained draft
+PASS discarding the disposable draft quits the native process

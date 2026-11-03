@@ -1,0 +1,128 @@
+   Compiling markdown-viewer v0.1.0 (/Users/randydodson/Documents/_code/markdown_viewer/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.38s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/markdown_viewer_lib-4cdcda351c87e513)
+
+running 108 tests
+test assets::tests::rejects_symlink_asset_directory ... ok
+test documents::registry::drafts_tests::active_table_draft_blocks_direct_localized_edits_but_source_changes_make_it_stale ... ok
+test documents::registry::drafts_tests::draft_updates_do_not_mutate_canonical_dirty_metadata_history_or_disk ... ok
+test documents::registry::drafts_tests::apply_commits_and_releases_as_one_undo_group ... ok
+test documents::registry::drafts_tests::failed_apply_is_atomic_and_retains_draft ... ok
+test assets::tests::image_import_is_unique_encoded_and_bounded ... ok
+test documents::registry::drafts_tests::invalid_opening_ranges_and_stale_bases_do_not_acquire ... ok
+test documents::registry::drafts_tests::multi_op_draft_apply_uses_prebatch_offsets_and_one_history_entry ... ok
+test documents::recovery::tests::live_session_records_are_not_offered_as_crash_recovery_in_a_second_window ... ok
+test documents::registry::drafts_tests::nonoverlapping_localized_edits_can_commit_but_invalidate_the_draft_base ... ok
+test documents::recovery::tests::legacy_snapshots_remain_readable_but_unbound_drafts_never_attach_to_ranges ... ok
+test documents::registry::drafts_tests::owner_destruction_preserves_modified_drafts_and_rotates_tokens_on_resume ... ok
+test documents::recovery::tests::torn_temporary_records_are_ignored_and_keys_cannot_escape_the_store ... ok
+test documents::recovery::tests::invalid_math_draft_recovers_with_kind_and_exact_source_without_changing_disk ... ok
+test documents::registry::drafts_tests::resuming_a_stale_orphan_never_overwrites_new_canonical_content ... ok
+test documents::registry::drafts_tests::simultaneous_acquisitions_have_one_winner ... ok
+test documents::recovery::tests::modified_draft_over_clean_canonical_survives_restart_with_exact_metadata ... ok
+test documents::registry::drafts_tests::unchanged_apply_releases_without_history_revision_or_dirty_change ... ok
+test documents::recovery::tests::failed_post_apply_maintenance_leaves_the_acknowledged_pre_apply_draft_recoverable ... ok
+test documents::registry::drafts_tests::wrong_owner_token_and_old_generation_cannot_mutate_or_release_a_lease ... ok
+test documents::registry::drafts_tests::source_edit_racing_draft_apply_has_one_atomic_winner ... ok
+test documents::registry::persistence::tests::failed_save_keeps_dirty_content_and_saved_revision ... ok
+test documents::recovery::tests::new_session_save_and_timer_cannot_overwrite_deferred_crash_recovery ... ok
+test documents::tests::apply_transaction_updates_content_and_revision ... ok
+test documents::recovery::tests::recovery_without_visual_capability_preserves_draft_in_a_source_copy ... ok
+test documents::recovery::tests::missing_original_restores_safe_copies_without_recreating_the_disk_file ... ok
+test documents::recovery::tests::canonical_save_retains_unapplied_draft_and_cancel_removes_only_resolved_recovery ... ok
+test documents::tests::dispose_preserves_documents_with_surviving_views ... ok
+test documents::tests::newline_detection ... ok
+test documents::tests::op_splitting_a_char_boundary_is_rejected ... ok
+test documents::tests::overlapping_ops_are_rejected ... ok
+test documents::tests::invalid_utf8_refused_without_conversion ... ok
+test documents::registry::persistence::tests::reload_refuses_stale_revisions_dirty_auto_reload_and_active_drafts ... ok
+test documents::tests::bom_is_stripped_and_flagged ... ok
+test documents::tests::invalid_utf8_explicit_conversion_is_lossless_latin1 ... ok
+test documents::tests::releasing_one_view_keeps_canonical_state ... ok
+test documents::service::save_regressions::external_change_during_temp_write_is_preserved ... ok
+test documents::registry::persistence::tests::save_as_publishes_path_only_after_success_and_preserves_history ... ok
+test documents::service::save_regressions::new_target_created_during_save_is_preserved ... ok
+test documents::service::save_regressions::explicit_new_target_is_created_without_overwriting_existing_files ... ok
+test documents::tests::same_path_is_one_entry_across_windows ... ok
+test documents::tests::stale_revision_is_rejected ... ok
+test documents::tests::save_over_deleted_file_fails_closed ... ok
+test documents::tests::two_clients_cannot_diverge ... ok
+test documents::tests::recovery_snapshot_roundtrip_and_cleanup ... ok
+test documents::tests::undo_redo_are_single_groups_and_shared ... ok
+test documents::tests::undo_redo_broadcasts_replay_exact_bytes_and_current_revisions ... ok
+test export::tests::docx_contains_ooxml_styles_tables_links_and_visible_fallbacks ... ok
+test documents::tests::undo_back_to_saved_state_clears_dirty ... ok
+test documents::tests::traversal_is_rejected ... ok
+test file_open::tests::arguments_resolve_against_sender_and_allow_literal_dash_names ... ok
+test file_open::tests::invalid_or_missing_files_become_visible_errors_and_queue_is_bounded ... ok
+test documents::tests::save_with_matching_revision_succeeds ... ok
+test file_open::tests::file_urls_decode_spaces_and_unicode_without_using_sender_directory ... ok
+test documents::tests::stale_save_is_rejected_and_original_intact ... ok
+test lifecycle::tests::only_the_requested_window_can_acknowledge_and_destruction_fails_closed ... ok
+test lifecycle::tests::quit_uses_a_stable_window_even_without_keyboard_focus ... ok
+test documents::tests::symlink_escape_is_rejected ... ok
+test documents::recovery::tests::changed_disk_and_stale_canonical_bases_restore_separate_draft_copies ... ok
+test lifecycle::tests::repeated_requests_cannot_replace_an_active_transaction ... ok
+test macos_termination::tests::termination_override_preserves_delegate_layout_and_inherited_callbacks ... ok
+test file_open::tests::one_window_owns_retryable_deduplicated_requests_until_acknowledgment ... ok
+test media::tests::malformed_requests_fail_closed ... ok
+test media::tests::native_webview_origins_decode_windows_drive_paths_once ... ok
+test lifecycle::tests::closing_one_shared_view_preserves_the_other_windows_dirty_document ... ok
+test lifecycle::tests::close_tab_releases_only_its_view_before_the_barrier_ends ... ok
+test lifecycle::tests::late_revision_change_rejects_discard_without_closing_a_window ... ok
+test media::tests::uri_parsing_handles_shapes_and_percent_encoding ... ok
+test media::tests::in_scope_image_resolves_with_sniffed_mime ... ok
+test export::tests::export_writes_atomically_and_never_reads_outside_document_scope ... ok
+test preview::tests::cancellation_is_scoped_to_window_and_current_request ... ok
+test media::tests::non_image_file_is_rejected ... ok
+test preview::tests::input_and_concurrency_budgets_reject_before_spawning ... ok
+test preview::tests::worker_fixture ... ignored
+test preview::tests::child_success_is_bounded_and_decoded ... ok
+test preview::tests::cancellation_and_output_caps_are_enforced ... ok
+test lifecycle::tests::invalid_owner_apply_never_releases_the_lease_or_closes_any_window ... ok
+test session::tests::normalized_clamps_active_index ... ok
+test media::tests::traversal_is_rejected ... ok
+test session::tests::normalized_dedupes_and_caps_recents ... ok
+test session::tests::normalized_drops_empty_path_tabs ... ok
+test session::tests::normalized_zeroes_index_when_no_tabs ... ok
+test lifecycle::tests::failed_save_or_changed_window_set_never_starts_destruction ... ok
+test lifecycle::tests::later_cancel_keeps_every_window_and_a_staged_draft_discard ... ok
+test session::tests::missing_file_yields_default ... ok
+test media::tests::symlink_escape_is_rejected ... ok
+test media::tests::oversized_file_is_rejected ... ok
+test session::tests::load_quarantines_corrupt_file_and_returns_empty ... ok
+test settings::tests::normalized_preserves_valid_values ... ok
+test settings::tests::normalized_repairs_zeroed_sidebar_fields ... ok
+test lifecycle::tests::reload_resolves_draft_then_replaces_under_the_freeze_and_remains_undoable ... ok
+test session::tests::save_load_roundtrip_preserves_state ... ok
+test settings::m4_tests::visual_is_fresh_default_without_overwriting_a_saved_source_preference ... ok
+test settings::tests::load_quarantines_corrupt_file_and_returns_defaults ... ok
+test workspace::window_scope_tests::folder_grants_are_per_window_and_must_be_directories ... ok
+test settings::m5_tests::preserves_future_keys_and_normalizes_preferences_across_save_reload ... ok
+test workspace::search_tests::search_omits_symlink_targets ... ok
+test workspace::m4_tests::symlinks_never_appear_or_escape ... ok
+test workspace::m4_tests::relative_link_scopes_and_percent_encoding ... ok
+test preview::tests::native_timeout_kills_a_worker_that_never_returns ... ok
+test workspace::m4_tests::patterns_and_scoped_markdown_listing ... ok
+test workspace::search_tests::bounds_results_and_reports_unsupported_files ... ok
+test lifecycle::tests::quit_resolves_drafts_before_canonical_and_prompts_a_shared_document_once ... ok
+test lifecycle::tests::navigation_resolves_remote_draft_without_saving_or_losing_dirty_canonical_text ... ok
+test workspace::search_tests::searches_nested_utf8_disk_lines_with_exclusions_and_preserves_files ... ok
+test documents::tests::roundtrip_byte_identical_unmodified ... ok
+test documents::registry::persistence::tests::save_and_watcher_share_a_serialized_disk_observation ... ok
+test documents::tests::recovery_snapshot_written_atomically_no_tear ... ok
+
+test result: ok. 107 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+     Running unittests src/main.rs (src-tauri/target/debug/deps/markdown_viewer-a16dccd7026d51cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests markdown_viewer_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -113,7 +113,9 @@ impl SessionStore {
             }
             d.insert("schemaVersion".into(), serde_json::json!(SESSION_VERSION));
         }
-        serde_json::from_value::<SessionState>(defaults).unwrap_or_default().normalized()
+        serde_json::from_value::<SessionState>(defaults)
+            .unwrap_or_default()
+            .normalized()
     }
 
     /// Atomic write (temp + rename).

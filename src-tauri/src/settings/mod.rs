@@ -24,12 +24,28 @@ pub struct Settings {
     /// Native spell-check (FR-049; platform support probed at M5).
     #[serde(default = "default_true")]
     pub spellcheck_enabled: bool,
+    #[serde(default = "default_true")]
+    pub show_frontmatter: bool,
     /// Sidebar state (FR-047).
     #[serde(default)]
     pub sidebar: SidebarSettings,
+    #[serde(default = "reader_font")]
+    pub reader_font: String,
+    #[serde(default = "editor_font")]
+    pub editor_font: String,
+    #[serde(default = "font_size")]
+    pub font_size: u32,
+    #[serde(default = "editor_size")]
+    pub editor_font_size: u32,
+    #[serde(default = "spacing")]
+    pub line_spacing: u32,
+    #[serde(default = "max_width")]
+    pub max_width: u32,
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SidebarSettings {
     #[serde(default = "default_visible")]
@@ -39,8 +55,39 @@ pub struct SidebarSettings {
     /// "files" | "toc"
     #[serde(default = "default_section")]
     pub section: String,
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
 }
 
+impl Default for SidebarSettings {
+    fn default() -> Self {
+        Self {
+            visible: default_visible(),
+            width: default_width(),
+            section: default_section(),
+            extra: Default::default(),
+        }
+    }
+}
+
+fn reader_font() -> String {
+    "system-ui".into()
+}
+fn editor_font() -> String {
+    "ui-monospace".into()
+}
+fn font_size() -> u32 {
+    16
+}
+fn editor_size() -> u32 {
+    15
+}
+fn spacing() -> u32 {
+    165
+}
+fn max_width() -> u32 {
+    800
+}
 fn default_version() -> u32 {
     SETTINGS_VERSION
 }
@@ -48,7 +95,7 @@ fn default_appearance() -> String {
     "system".into()
 }
 fn default_mode() -> String {
-    "source".into()
+    "visual".into()
 }
 fn default_true() -> bool {
     true
@@ -70,7 +117,15 @@ impl Default for Settings {
             appearance: default_appearance(),
             default_mode: default_mode(),
             spellcheck_enabled: true,
+            show_frontmatter: true,
             sidebar: SidebarSettings::default(),
+            reader_font: reader_font(),
+            editor_font: editor_font(),
+            font_size: font_size(),
+            editor_font_size: editor_size(),
+            line_spacing: spacing(),
+            max_width: max_width(),
+            extra: Default::default(),
         }
     }
 }
@@ -86,17 +141,43 @@ impl Settings {
         if self.sidebar.section.is_empty() {
             self.sidebar.section = default_section();
         }
+        self.sidebar.width = self.sidebar.width.clamp(160, 500);
+        if !["files", "toc"].contains(&self.sidebar.section.as_str()) {
+            self.sidebar.section = default_section();
+        }
+        if !["system", "light", "dark"].contains(&self.appearance.as_str()) {
+            self.appearance = default_appearance();
+        }
+        if !["read", "source", "split", "visual"].contains(&self.default_mode.as_str()) {
+            self.default_mode = default_mode();
+        }
+        for (font, fallback) in [
+            (&mut self.reader_font, reader_font()),
+            (&mut self.editor_font, editor_font()),
+        ] {
+            if font.is_empty() || font.len() > 100 || font.chars().any(|c| c.is_control()) {
+                *font = fallback;
+            }
+        }
+        self.font_size = self.font_size.clamp(12, 40);
+        self.editor_font_size = self.editor_font_size.clamp(10, 32);
+        self.line_spacing = self.line_spacing.clamp(100, 240);
+        self.max_width = self.max_width.clamp(400, 1400);
         self
     }
 }
 
 pub struct SettingsStore {
     path: PathBuf,
+    writer: std::sync::Mutex<()>,
 }
 
 impl SettingsStore {
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into() }
+        Self {
+            path: path.into(),
+            writer: std::sync::Mutex::new(()),
+        }
     }
 
     /// Load, running migrations. A missing file yields defaults. Corrupt
@@ -140,6 +221,10 @@ impl SettingsStore {
 
     /// Atomic write (temp + rename).
     pub fn save(&self, settings: &Settings) -> std::result::Result<(), std::io::Error> {
+        let _guard = self
+            .writer
+            .lock()
+            .map_err(|_| std::io::Error::other("settings writer lock"))?;
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -190,5 +275,43 @@ mod tests {
         let s = store.load();
         assert_eq!(s, Settings::default());
         assert!(path.with_extension("json.corrupt").exists());
+    }
+}
+
+#[cfg(test)]
+mod m4_tests {
+    use super::*;
+    #[test]
+    fn visual_is_fresh_default_without_overwriting_a_saved_source_preference() {
+        assert_eq!(Settings::default().default_mode, "visual");
+        assert_eq!(Settings::default().sidebar.width, 240);
+        assert!(Settings::default().sidebar.visible);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, r#"{"defaultMode":"source","showFrontmatter":false}"#).unwrap();
+        let loaded = SettingsStore::new(path).load();
+        assert_eq!(loaded.default_mode, "source");
+        assert!(!loaded.show_frontmatter);
+    }
+}
+
+#[cfg(test)]
+mod m5_tests {
+    use super::*;
+    #[test]
+    fn preserves_future_keys_and_normalizes_preferences_across_save_reload() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("settings.json");
+        std::fs::write(&path,r#"{"future":{"keep":true},"sidebar":{"future":42},"fontSize":900,"lineSpacing":0,"appearance":"invalid","defaultMode":"invalid"}"#).unwrap();
+        let store = SettingsStore::new(path);
+        let settings = store.load().normalized();
+        assert_eq!(settings.font_size, 40);
+        assert_eq!(settings.line_spacing, 100);
+        assert_eq!(settings.appearance, "system");
+        assert_eq!(settings.default_mode, "visual");
+        store.save(&settings).unwrap();
+        let reloaded = store.load();
+        assert_eq!(reloaded.extra["future"], json!({"keep":true}));
+        assert_eq!(reloaded.sidebar.extra["future"], 42);
     }
 }

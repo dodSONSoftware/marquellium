@@ -330,6 +330,7 @@ export class DocumentStore {
         return this.captureSourceSnapshot(docId);
       },
       info: native.drafts.info,
+      resume: native.drafts.resume,
       acquire: native.drafts.acquire,
       update: native.drafts.update,
       release: native.drafts.release,
@@ -588,10 +589,12 @@ export class DocumentStore {
 
   /** Replace the mirror with current disk content (confirmed reload). */
   async reloadFromDisk(docId: string): Promise<void> {
-    // A reload discards local uncommitted edits by definition; abort the
-    // group rather than committing it and then throwing it away.
-    this.abortGroup(docId);
-    await native.documents.reload(docId);
+    // Automatic reload is revision-pinned and clean-only in Rust. Flush
+    // pending edits so a late disk event rejects instead of dropping them.
+    await this.flushGroup(docId);
+    const document = this.docs.get(docId);
+    if (!document) throw new Error(`unknown document ${docId}`);
+    await native.documents.reload(docId, document.revision);
     await this.resync(docId);
   }
 
@@ -616,6 +619,14 @@ export class DocumentStore {
 
   async release(docId: string): Promise<void> {
     await native.documents.release(docId);
+  }
+
+  /** The native lifecycle transaction already released this view. */
+  removeClosedDocument(docId: string): void {
+    this.clearRecovery(docId);
+    this.docs.delete(docId);
+    this.pendingQueue.delete(docId);
+    this.emit();
   }
 
   /** Debounced recovery snapshot (FR-006). Draft = null in M1. */

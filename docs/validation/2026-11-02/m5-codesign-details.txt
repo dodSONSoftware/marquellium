@@ -1,0 +1,9 @@
+Executable=/Users/randydodson/Documents/_code/markdown_viewer/src-tauri/target/release/bundle/macos/Marquellium.app/Contents/MacOS/markdown-viewer
+Identifier=markdown_viewer-aeeb9446db6f7a4b
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=51144 flags=0x20002(adhoc,linker-signed) hashes=1594+0 location=embedded
+Signature=adhoc
+Info.plist=not bound
+TeamIdentifier=not set
+Sealed Resources=none
+Internal requirements=none

@@ -1,0 +1,16 @@
+[
+  {
+    "pid": "12331",
+    "cwd": "/",
+    "environment": [
+      "MARKDOWN_VIEWER_DATA_DIR=/tmp/marquellium-m6-_mvbl__v/data"
+    ]
+  },
+  {
+    "pid": "12567",
+    "cwd": "/",
+    "environment": [
+      "MARKDOWN_VIEWER_DATA_DIR=/tmp/marquellium-m6-_mvbl__v/data"
+    ]
+  }
+]

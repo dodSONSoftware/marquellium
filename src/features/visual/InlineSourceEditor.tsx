@@ -1,4 +1,4 @@
-/** Draft-only CM surface. It is not enabled in App until the Visual integration. */
+/** Draft-only CM surface with local history; navigation resolution is handled by the lifecycle coordinator. */
 import { useEffect, useReducer, useRef } from "react";
 import { EditorView } from "@codemirror/view";
 import type { DraftSession } from "../../core/draft-session";
@@ -15,6 +15,7 @@ export function InlineSourceEditor({ session, onClosed }: { session: DraftSessio
         if (!session.busy) for (const transaction of transactions) session.dispatch(transaction);
       },
     });
+    view.contentDOM.setAttribute("spellcheck", document.documentElement.dataset.nativeSpelling ?? "true");
     let destroyed = false;
     const unsubscribe = session.subscribe((transaction) => {
       if (session.closed && !destroyed) { view.destroy(); destroyed = true; }

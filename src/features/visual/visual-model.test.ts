@@ -31,7 +31,7 @@ describe("direct visual text adapter", () => {
     const { map, leaf } = target("Literal \\*star\\*.", "Literal *star*.");
     expect(directTextEdit(map, leaf, "Literal *stars*.").expected).toBe("Literal \\*stars\\*.");
   });
-  it.each(["", "line\nbreak", "x".repeat(2049)])("rejects unsupported direct text without mutation", (replacement) => {
+  it.each(["", "line\rbreak", "x".repeat(16385)])("rejects unsupported direct text without mutation", (replacement) => {
     const { map, leaf } = target("word", "word");
     expect(() => directTextEdit(map, leaf, replacement)).toThrow();
     expect(map.snapshot.text).toBe("word");
@@ -141,5 +141,34 @@ describe("Visual adapter independent byte fixtures", () => {
     const result = directTextEdit(map, leaf, display);
     const saved = Buffer.concat([bytes.subarray(0, bom ? 3 : 0), Buffer.from(result.expected)]);
     expect(saved).toEqual(readFileSync(new URL(`../../../fixtures/markdown/m3v/${fixture}-expected.md`, import.meta.url)));
+  });
+});
+
+describe("M4 supported containers and soft lines", () => {
+  it.each([
+    ["- outer **bold**\n  - nested text\n\n<!-- KEEP -->", "nested text", "nested edit", "- outer **bold**\n  - nested edit\n\n<!-- KEEP -->"],
+    ["> Quoted **bold**.\n\n<!-- KEEP -->", "bold", "changed", "> Quoted **changed**.\n\n<!-- KEEP -->"],
+    ["First soft line\r\nSecond soft line\r\n\r\n<!-- KEEP -->", "First soft line\r\nSecond soft line", "First soft line\nChanged line", "First soft line\r\nChanged line\r\n\r\n<!-- KEEP -->"],
+    ["[Label][id]\n\n[id]: relative.md", "Label", "Changed", "[Changed][id]\n\n[id]: relative.md"],
+  ])("edits leaves without rewriting container delimiters: %s", (source, selected, display, expected) => {
+    const { map, leaf } = target(source, selected);
+    expect(directTextEdit(map, leaf, display).expected).toBe(expected);
+  });
+  it("accepts a soft line and longer text while rejecting a paragraph split", () => {
+    const { map, leaf } = target("word", "word");
+    expect(directTextEdit(map, leaf, "soft\nline").expected).toBe("soft\nline");
+    expect(directTextEdit(map, leaf, "x".repeat(2049)).expected).toBe("x".repeat(2049));
+    expect(() => directTextEdit(map, leaf, "a\n\nb")).toThrow("structure");
+  });
+  it("validates math drafts, retaining the last valid preview on malformed math", async () => {
+    const preview = new PreviewController("math");
+    expect((await preview.validate("$$\nx^2\n$$")).valid).toBe(true);
+    expect((await preview.validate("$$\n\\frac{\n$$")).valid).toBe(false);
+    expect(preview.lastValid?.source).toBe("$$\nx^2\n$$");
+    expect((await preview.validate("ordinary paragraph")).valid).toBe(false);
+    expect((await preview.validate("$$\nx^2")).valid).toBe(false);
+    expect((await preview.validate("$$\nx^2\n$$\n\n# Outside")).valid).toBe(false);
+    expect((await preview.validate("$$$$\nx^2\n$$")).valid).toBe(false);
+    preview.dispose();
   });
 });

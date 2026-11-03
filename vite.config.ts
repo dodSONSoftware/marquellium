@@ -6,6 +6,9 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // The parser's entity decoder publishes a DOM-free worker export. Keep
+  // workers and the main view on that same deterministic implementation.
+  resolve: { conditions: ["worker", "module", "browser", "development|production"] },
 
   // Vite options tailored for Tauri development.
   // 1. prevent Vite from obscuring rust errors

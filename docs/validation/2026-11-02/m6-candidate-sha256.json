@@ -1,0 +1,26 @@
+{
+  "sha256": {
+    "src-tauri/target/release/bundle/macos/Marquellium.app/Contents/MacOS/markdown-viewer": "4e3e6f9906e66d670a59e78f2fc7a251c956ba9ac053104e5e3dea80a0a0997b",
+    "src-tauri/target/m6-linux/Marquellium_0.1.0_aarch64.AppImage": "a72ac66b7b996b2715cd0c13339d0c7136e99a81a19502f441b49a1b342d3864",
+    "src-tauri/target/m6-linux/Marquellium_0.1.0_arm64.deb": "ad67a28df63d139456e37856370a253c55f4bfb1ff7cf6f585f72a916c5589bc",
+    "src-tauri/Cargo.lock": "fb083184598548766e0035e5d89ae752e940609ce482660040bb9fbe4e64b5dd",
+    "pnpm-lock.yaml": "93221692b0d34fa5dc33923e7ae15d96f46e73f12f24404644f5bb1b8cce7464",
+    "src-tauri/tauri.conf.json": "ded30ae84ff2be6cefc6f4bbe548920ad3b5c11c90f4c82c4e02b0996fb05499",
+    ".github/workflows/portability.yml": "31da313e272fba1855573d0c3cbec3b8c71f672a7f96215ac7f8166777e3974f",
+    "scripts/acceptance/m6-webdriver.py": "8e11852af443ec0a02262056e5efd0243e0e5c8be62939ec56720adcfb0ca4fa",
+    "scripts/acceptance/m6-linux.Dockerfile": "02bc5b0ca193c3e6484bb9416fa7f4771a67213ddc2676eef4cdaa929eafb2cd",
+    "src-tauri/src/file_open.rs": "f244eb9766d9ce4391c5e43d0fb5736f5ba737da0c60966ed51495e6acf8edeb",
+    "src-tauri/src/lib.rs": "7438a53f620f59696bdbb5d95ad9c40b363ed20cdc97c23293c19179ed901181",
+    "src-tauri/src/media.rs": "1d57d7209375f2084fb711128b3e51b268e28d6a985b19b54f68c6d44ccd132b",
+    "src/features/documents/useFileOpenRequests.ts": "88d8641103e6f7f27d9f2e3ea1f46b3857dbec33abb2c635444b0f15f7305e70",
+    "src/core/render/media-path.ts": "405b574fee81dfc6ecf19389afbdc6b92730d384559020e469621a45f77f1276",
+    "src/core/render/url-policy.ts": "5c23f6fcc3487192ee70321afbd65d40336b833a5c55c89bbcf3b9bbedf6fb40"
+  },
+  "platforms": {
+    "macos": "27.2 arm64",
+    "linux": "Debian 12 arm64 / X11 / GTK 3.24.38 / WebKitGTK 2.50.6",
+    "windows": "NOT RUN"
+  },
+  "builderImage": "rust:1.99-bookworm@sha256:9181b56c2a21ab1d5e73cffe04fc762426d30aa7fac3c91141dd033f49a7fc8b",
+  "runtimeImage": "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
+}

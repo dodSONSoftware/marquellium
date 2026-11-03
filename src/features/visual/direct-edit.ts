@@ -1,69 +1,21 @@
-/** Bounded literal-text adapter. It never serializes an enclosing Markdown block. */
-import { createSourceMap, type DocumentSourceMap, type MappedNode } from "../../core/source-map";
-import { prepareLocalizedEdit, type LocalizedEdit } from "../../core/localized-edit";
-import { ByteIndex, splitsPair } from "../../core/positions";
-import { diffRange } from "../../core/text-diff";
-import { applyOps, bytesToString, stringToBytes } from "../../core/ops";
+import type { DocumentSourceMap, MappedNode } from "../../core/source-map";
 import type { DocumentStore } from "../documents/DocumentStore";
+import { directTextEdit, displayedText } from "./direct-adapter";
+export { directTextEdit, editableText } from "./direct-adapter";
 
-const punctuation = /[!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~]/;
-function decode(raw: string): { text: string; offsets: number[] } {
-  let text = "";
-  const offsets = [0];
-  for (let i = 0; i < raw.length; i++) {
-    if (raw[i] === "\\" && raw[i + 1] && punctuation.test(raw[i + 1]!)) i++;
-    text += raw[i];
-    offsets.push(i + 1);
-  }
-  return { text, offsets };
-}
-function pathTo(node: MappedNode, target: MappedNode): number[] | null {
-  if (node === target) return [];
-  for (let i = 0; i < node.children.length; i++) {
-    const path = pathTo(node.children[i]!, target);
-    if (path) return [i, ...path];
-  }
-  return null;
-}
-function shape(node: MappedNode): string { return `${node.type}(${node.children.map(shape).join(",")})`; }
-function atPath(node: MappedNode, path: number[]): MappedNode | undefined {
-  let current: MappedNode | undefined = node;
-  for (const index of path) current = current?.children[index];
-  return current;
-}
-export function editableText(leaf: MappedNode): boolean {
-  return leaf.type === "text" && !!leaf.decodedText && !/[\r\n]/.test(leaf.source) && decode(leaf.source).text === leaf.decodedText;
-}
-
-export function directTextEdit(map: DocumentSourceMap, leaf: MappedNode, display: string) {
-  const blockIndex = map.blocks.findIndex((block) => pathTo(block.node, leaf) !== null);
-  const block = map.blocks[blockIndex];
-  if (!block || !editableText(leaf) || !["text-candidate", "table-candidate"].includes(block.capability)) throw new Error("use the explicit source editor for this text");
-  if (!display || /[\r\n]/.test(display) || display.length > 2048) throw new Error("direct text must be nonempty, single-line and at most 2048 characters; use source editing");
-  const original = decode(leaf.source);
-  const change = diffRange(original.text, display);
-  let from = change.from, to = change.to, insertedEnd = change.from + change.insert.length;
-  if (splitsPair(original.text, from) || splitsPair(display, from)) from--;
-  if (splitsPair(original.text, to) || splitsPair(display, insertedEnd)) { to++; insertedEnd++; }
-  const encoded = display.slice(from, insertedEnd).replace(/[!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~]/g, "\\$&");
-  const replacement = leaf.source.slice(0, original.offsets[from]) + encoded + leaf.source.slice(original.offsets[to]);
-  const request: LocalizedEdit = { docId: map.snapshot.docId, baseRevision: map.snapshot.revision,
-    authorizedRange: leaf.range, range: leaf.range, openingText: leaf.source, replacementText: replacement };
-  const ops = prepareLocalizedEdit(map.snapshot, request);
-  const applied = applyOps(stringToBytes(map.snapshot.text), ops);
-  if (!applied.ok) throw new Error(applied.error);
-  const expected = bytesToString(applied.next);
-  const next = createSourceMap({ ...map.snapshot, revision: map.snapshot.revision + (ops.length ? 1 : 0), text: expected });
-  const nextBlock = next.blocks[blockIndex];
-  const path = pathTo(block.node, leaf)!;
-  const nextLeaf = nextBlock && atPath(nextBlock.node, path);
-  if (!nextLeaf || nextLeaf.decodedText !== display || nextLeaf.source !== replacement ||
-      map.blocks.map((b) => shape(b.node)).join(";") !== next.blocks.map((b) => shape(b.node)).join(";")) {
-    throw new Error("edit changes Markdown structure; use the explicit source editor");
-  }
-  // Check the byte conversion independently of a renderer/serializer.
-  if (new ByteIndex(expected).byteOffset(nextLeaf.range.from) === null) throw new Error("unsafe resulting source range");
-  return { request, next, nextLeaf, expected };
+function prepareDirectText(map: DocumentSourceMap, leaf: MappedNode, display: string): Promise<ReturnType<typeof directTextEdit>> {
+  if (map.snapshot.text.length <= 64 * 1024 || typeof Worker === "undefined") return Promise.resolve(directTextEdit(map, leaf, display));
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./direct-worker.ts", import.meta.url), { type: "module" });
+    const timeout = setTimeout(() => { worker.terminate(); reject(new Error("direct edit validation timed out")); }, 6000);
+    const finish = () => { clearTimeout(timeout); worker.terminate(); };
+    worker.onerror = () => { finish(); reject(new Error("direct edit validator failed")); };
+    worker.onmessage = (event: MessageEvent<{ edit?: ReturnType<typeof directTextEdit>; error?: string }>) => {
+      finish();
+      if (event.data.edit) resolve(event.data.edit); else reject(new Error(event.data.error ?? "direct edit validation failed"));
+    };
+    worker.postMessage({ snapshot: map.snapshot, from: leaf.range.from, to: leaf.range.to, display });
+  });
 }
 
 export class DirectTextController {
@@ -74,10 +26,11 @@ export class DirectTextController {
   private preparationRejected = false;
   private listeners = new Set<() => void>();
   constructor(private map: DocumentSourceMap, private leaf: MappedNode, private readonly store: Pick<DocumentStore, "applyLocalizedEdit" | "captureSourceSnapshot">) {
-    this.desired = this.applied = leaf.decodedText ?? leaf.source;
+    this.desired = this.applied = displayedText(leaf);
   }
   get display(): string { return this.desired; }
   get revision(): number { return this.map.snapshot.revision; }
+  get sourceMap(): DocumentSourceMap { return this.map; }
   get hasPending(): boolean { return !!this.running || this.desired !== this.applied || !!this.failure; }
   get error(): string | null { return this.failure; }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
@@ -105,7 +58,9 @@ export class DirectTextController {
         const display = this.desired;
         let edit: ReturnType<typeof directTextEdit>;
         try {
-          edit = directTextEdit(this.map, this.leaf, display);
+          edit = this.map.snapshot.text.length > 64 * 1024 && typeof Worker !== "undefined"
+            ? await prepareDirectText(this.map, this.leaf, display)
+            : directTextEdit(this.map, this.leaf, display);
         } catch (error) {
           // Empty text or trailing heading whitespace can be a transient typing
           // state. Nothing was dispatched, so later input may validate against

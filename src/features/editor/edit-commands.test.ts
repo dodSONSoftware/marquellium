@@ -159,3 +159,11 @@ describe("safety", () => {
     expect(applyEditCommand("", sel(0, 0), "bold")!.text).toBe("****");
   });
 });
+
+it("Visual fence commands preserve raw CRLF text and use the containing document ending", () => {
+  const source = "one\r\ntwo";
+  const result = applyEditCommand(source, { from: 0, to: source.length }, "fence");
+  expect(result?.text).toBe("```\r\none\r\ntwo\r\n```");
+  expect(result?.selection).toEqual({ from: 5, to: 5 + source.length });
+  expect(applyEditCommand("single", { from: 0, to: 6 }, "fence", "\r\n")?.text).toBe("```\r\nsingle\r\n```");
+});

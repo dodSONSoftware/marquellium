@@ -1,3 +1,21 @@
+import { useFileOpenRequests } from "../features/documents/useFileOpenRequests";
+import { useBenchmark } from "../features/settings/useBenchmark";
+import { ExportDialog } from "../features/export/ExportDialog";
+import { Preferences, typographyDefaults } from "../features/settings/Preferences";
+import { onSettingsChanged } from "../services/native";
+import { useStatistics } from "../features/settings/useStatistics";
+import { openSearchPanel } from "@codemirror/search";
+import { imageInsertion } from "../core/image-insertion";
+import { undo as undoDraft, redo as redoDraft } from "@codemirror/commands";
+import { WorkspaceTree } from "../features/workspace/WorkspaceTree";
+import { CommandPalette, type PaletteCommand } from "../features/commands/CommandPalette";
+import { localLinks, hasAnchor } from "../core/local-links";
+import { restoreContext } from "../core/view-context";
+import { newTable } from "../core/table-edit";
+import { type ViewContext } from "../core/view-context";
+import { readerContext, restoreReaderContext, scrollReaderOffset } from "../features/reader/navigation";
+import { VisualSurface, type PrototypeActivity } from "../features/visual/VisualSurface";
+import { useLifecycle } from "../features/documents/useLifecycle";
 import { openVisualPrototype } from "../services/native";
 import { subscriptionScope } from "../services/subscription-scope";
 /**
@@ -5,8 +23,8 @@ import { subscriptionScope } from "../services/subscription-scope";
  * dirty indicators, external-change handling, recovery prompt, and
  * close/quit resolution via the ADR-008 state machine.
  *
- * Modes: Read (M2 pipeline) and Source (textarea) are live; Split is M3
- * and Visual is gated on M3V (FR-012B: four persistent, visible buttons).
+ * Read, CodeMirror Source, Split and source-preserving Visual share the
+ * registry and the same coordinated navigation/draft lifecycle.
  * The left sidebar (FR-047, pulled forward) hosts the outline in Read mode;
  * the toolbar carries the sidebar toggle and the light/dark switch (FR-031).
  *
@@ -25,8 +43,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  CloseCoordinator,
-  type DocStateForClose,
   type Trigger,
 } from "../core/close-state-machine";
 import { bytesToString } from "../core/ops";
@@ -35,7 +51,7 @@ import {
   type LocalDoc,
 } from "../features/documents/DocumentStore";
 import { Reader } from "../features/reader/Reader";
-import { runEditorCommand, SourceEditor } from "../features/editor/SourceEditor";
+import { runEditorCommand, sourceScrollOffset, scrollSourceOffset, sourceContext, restoreSourceContext, SourceEditor } from "../features/editor/SourceEditor";
 import type { EditCommandId } from "../features/editor/edit-commands";
 import type { EditorView } from "@codemirror/view";
 import {
@@ -59,7 +75,6 @@ import {
   onMenuCommand,
   onWindowCloseRequested,
   type RecoveryInfo,
-  type SaveResult,
   type SessionState,
   type Settings,
 } from "../services/native";
@@ -76,7 +91,7 @@ const UI_LS_KEY = "markdown-viewer-ui";
 const DEFAULT_SETTINGS: Settings = {
   schemaVersion: 1,
   appearance: "system",
-  defaultMode: "source",
+  defaultMode: "visual",
   spellcheckEnabled: true,
   sidebar: { visible: true, width: 240, section: "files" },
 };
@@ -90,15 +105,14 @@ const MODES: {
   { id: "read", label: "Read", available: true, note: "" },
   { id: "source", label: "Source", available: true, note: "" },
   { id: "split", label: "Split", available: true, note: "" },
-  { id: "visual", label: "Visual", available: false, note: "gated on M3V fidelity prototype" },
+  { id: "visual", label: "Visual", available: true, note: "" },
 ];
 
-/** FR-042: the stored default may name a mode this build cannot show yet
- *  (Visual until M3V passes) — such tabs fall back to Source. */
+/** FR-042: retain explicit stored modes; fresh/unknown defaults use Visual. */
 function openMode(stored: string | undefined): ViewMode {
-  return stored === "read" || stored === "source" || stored === "split"
+  return stored === "read" || stored === "source" || stored === "split" || stored === "visual"
     ? stored
-    : "source";
+    : "visual";
 }
 
 /** FR-001 drop filter: markdown and UTF-8 plain text (mirrors the Open
@@ -125,12 +139,6 @@ interface Tab {
 }
 
 type Modal =
-  | {
-      kind: "close";
-      trigger: Trigger;
-      coordinator: CloseCoordinator;
-      onDone: (aborted: boolean) => void;
-    }
   | { kind: "disk"; docId: string; conflict?: boolean; message?: string }
   | { kind: "recovery"; items: RecoveryInfo[] }
   | null;
@@ -145,6 +153,8 @@ interface AppHandlers {
   closeActiveTab: () => void;
   requestClose: (trigger: Trigger, onlyDocIds?: string[]) => void;
   setMode: (mode: ViewMode) => void;
+  history: (redo: boolean) => void;
+  find: () => Promise<void>;
 }
 
 function docName(d: { docId: string; path: string | null }): string {
@@ -163,6 +173,8 @@ export function App() {
 
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState<string | null>(null);
   // FR-001: an OS file drag is hovering the window with openable files.
@@ -179,10 +191,12 @@ export function App() {
   // Set once the startup restore resolves, so the persistence writer never
   // clobbers the session file while a slow restore is still reading it.
   const restoredRef = useRef(false);
+  const [startupReady, setStartupReady] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [recoveryLoaded, setRecoveryLoaded] = useState(false);
   // Latest derived session state, for the pagehide best-effort write.
   const sessionRef = useRef<SessionState | null>(null);
   const handlersRef = useRef<AppHandlers | null>(null);
-  const activeCloseRef = useRef<CloseCoordinator | null>(null);
   const activeDoc = activeId ? docState.get(activeId) : undefined;
   const activeTab = tabs.find((t) => t.docId === activeId);
   const mode = activeTab?.mode ?? null;
@@ -194,6 +208,8 @@ export function App() {
     editorViewRef.current = v;
   }, []);
   // Split panes: editor pane width as % of the panes container (in-session).
+  const viewContexts = useRef(new Map<string, ViewContext>());
+  const [visualContext, setVisualContext] = useState<ViewContext | null>(null);
   const panesRef = useRef<HTMLDivElement | null>(null);
   const [splitPct, setSplitPct] = useState(50);
   const [dragPct, setDragPct] = useState<number | null>(null);
@@ -209,14 +225,42 @@ export function App() {
   // keystroke on a large doc would blow the NFR-003 input budget.
   const [readerContent, setReaderContent] = useState("");
   const readerKeyRef = useRef("");
+  useBenchmark(activeDoc ? docText(activeDoc) : "", readerContent, editorViewRef, () => store.flushAll());
+  const readerEntry = useRef<{ docId: string; mode: ViewMode; scrollTop: number } | null>(null);
+  const captureContext = useCallback(() => {
+    if (!activeId || !activeDoc) return;
+    const view = editorViewRef.current;
+    if (view && (mode === "source" || mode === "split")) {
+      viewContexts.current.set(activeId, sourceContext(view));
+    } else if (mode === "read" && readerScrollRef.current) {
+      const root = readerScrollRef.current;
+      // Preserve an exact Source selection if Read has not moved. A scrolled
+      // rendered view falls back to the visible block, never guessed offsets.
+      if (!viewContexts.current.has(activeId) || readerEntry.current?.docId !== activeId ||
+          Math.abs(root.scrollTop - readerEntry.current.scrollTop) > 1) {
+        const context = readerContext(root, docText(activeDoc));
+        if (context) viewContexts.current.set(activeId, context);
+      }
+    }
+  }, [activeId, activeDoc, mode]);
 
   // --- UI preferences (FR-031 appearance, FR-047 sidebar) -------------------
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [preferences, setPreferences] = useState<Settings>(DEFAULT_SETTINGS);
+  const statistics = useStatistics(activeDoc ? docText(activeDoc) : "");
+  const [defaultMode, setDefaultMode] = useState<ViewMode>("visual");
+  const [showFrontmatter, setShowFrontmatter] = useState(true);
+  const [assetFolder, setAssetFolder] = useState("assets");
+  const [linkResults, setLinkResults] = useState<string[] | null>(null);
   const [appearance, setAppearance] = useState<Appearance>("system");
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarSection, setSidebarSection] = useState<"files" | "toc">("toc");
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const settingsRef = useRef<Settings | null>(null);
-  const uiRef = useRef({ appearance, sidebarVisible, sidebarWidth });
-  uiRef.current = { appearance, sidebarVisible, sidebarWidth };
+  const uiRef = useRef({ appearance, sidebarVisible, sidebarWidth, sidebarSection });
+  uiRef.current = { appearance, sidebarVisible, sidebarWidth, sidebarSection };
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
@@ -229,6 +273,31 @@ export function App() {
     setToast(msg);
     window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 3500);
   }, []);
+
+  const pendingImports = useRef(0);
+  const [importing, setImporting] = useState(false);
+  const visualActivity = useRef<PrototypeActivity>({ draft: null, direct: null });
+  const onVisualActivity = useCallback((activity: PrototypeActivity) => { visualActivity.current = activity; }, []);
+  const lifecycle = useLifecycle(store, () => ({ ...visualActivity.current, opening: !!visualActivity.current.opening || pendingImports.current > 0 }), flash,
+    () => restoredRef.current && (!modal || modal.kind === "disk"));
+  const lifecycleRef = useRef(lifecycle);
+  lifecycleRef.current = lifecycle;
+
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement).closest?.("dialog")) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f" && mode !== "source" && mode !== "split" && !lifecycleRef.current.blocked && !modal) {
+        event.preventDefault(); void handlersRef.current?.find(); return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p" && !lifecycleRef.current.blocked && !modal) {
+        event.preventDefault(); captureContext(); setPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [captureContext, modal, mode]);
+
+  useEffect(() => { setLinkResults(null); }, [activeId, activeDoc?.revision]);
 
   // --- document store subscription ----------------------------------------
   useEffect(
@@ -268,8 +337,7 @@ export function App() {
         const t = s.tabs[i]!;
         try {
           const docId = await store.openDocument(t.path);
-          // FR-042 fallback: a stored mode this build can't show (Visual
-          // until M3V) falls back to Source.
+          // Explicit stored modes survive the fresh-default change.
           opened.push({ docId, mode: openMode(t.mode), orig: i });
         } catch {
           /* missing or unreadable: skip gracefully */
@@ -295,8 +363,12 @@ export function App() {
         .get()
         .then((s: Settings) => {
           settingsRef.current = s;
+          setPreferences(s);
+          setDefaultMode(openMode(s.defaultMode));
+          setShowFrontmatter(s.showFrontmatter !== false);
           setAppearance(s.appearance);
           setSidebarVisible(s.sidebar.visible);
+          setSidebarSection(s.sidebar.section === "files" ? "files" : "toc");
           // A persisted 0/negative/absurd width must never render a
           // sliver panel (the Rust side normalizes too; this covers
           // browser-dev localStorage as well).
@@ -307,13 +379,13 @@ export function App() {
               : 240,
           );
         })
-        .catch(() => {});
+        .catch(() => {}).finally(() => setSettingsLoaded(true));
       void native.recovery
         .list()
         .then((items) => {
-          if (items.length > 0) setModal((m) => m?.kind === "close" ? m : { kind: "recovery", items });
+          if (items.length > 0) setModal({ kind: "recovery", items });
         })
-        .catch(() => {});
+        .catch(() => {}).finally(() => setRecoveryLoaded(true));
       // FR-033: restore the previous session's file tabs (missing files
       // are skipped gracefully, FR-004). Restored before the persistence
       // writer is armed so it can't clobber the file mid-restore.
@@ -323,18 +395,22 @@ export function App() {
         .catch(() => {})
         .finally(() => {
           restoredRef.current = true;
+          setStartupReady(true);
         });
     } else {
       try {
         const raw = localStorage.getItem(UI_LS_KEY);
         if (raw) {
-          const p = JSON.parse(raw) as {
+          const saved = JSON.parse(raw); setPreferences({ ...DEFAULT_SETTINGS, ...saved });
+          const p = saved as {
             appearance?: Appearance;
             sidebarVisible?: boolean;
             sidebarWidth?: number;
+            sidebarSection?: "files" | "toc";
           };
           setAppearance(p.appearance ?? "system");
           setSidebarVisible(p.sidebarVisible ?? true);
+          setSidebarSection(p.sidebarSection ?? "toc");
           setSidebarWidth(p.sidebarWidth ?? 240);
         }
       } catch {
@@ -382,6 +458,29 @@ export function App() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  useEffect(() => {
+    if (!isTauri()) return;
+    const listener = onSettingsChanged((s) => {
+      settingsRef.current = s; setPreferences(s); setAppearance(s.appearance);
+      setDefaultMode(openMode(s.defaultMode)); setShowFrontmatter(s.showFrontmatter !== false);
+      setSidebarVisible(s.sidebar.visible); setSidebarWidth(s.sidebar.width); setSidebarSection(s.sidebar.section);
+    });
+    return () => { void listener.then((off) => off()); };
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.nativeSpelling = String(preferences.spellcheckEnabled);
+    document.querySelectorAll(".cm-content").forEach((el) => el.setAttribute("spellcheck", String(preferences.spellcheckEnabled)));
+    const p = { ...typographyDefaults, ...preferences }, style = document.documentElement.style;
+    style.setProperty("--reader-font", ["system-ui", "serif", "sans-serif", "monospace", "ui-monospace"].includes(p.readerFont) ? p.readerFont : JSON.stringify(p.readerFont)); style.setProperty("--editor-font", ["monospace", "ui-monospace"].includes(p.editorFont) ? p.editorFont : JSON.stringify(p.editorFont));
+    style.setProperty("--reader-font-size", `${p.fontSize}px`); style.setProperty("--editor-font-size", `${p.editorFontSize}px`);
+    style.setProperty("--reader-line-height", String(p.lineSpacing / 100)); style.setProperty("--reader-max-width", `${p.maxWidth}px`);
+  }, [preferences]);
+  const savePreferences = async (s: Settings) => {
+    if (isTauri()) await native.settings.set(s); else localStorage.setItem(UI_LS_KEY, JSON.stringify(s));
+    settingsRef.current = s; setPreferences(s); setAppearance(s.appearance); setDefaultMode(openMode(s.defaultMode)); setShowFrontmatter(s.showFrontmatter !== false);
+    setSidebarVisible(s.sidebar.visible); setSidebarWidth(s.sidebar.width); setSidebarSection(s.sidebar.section);
+  };
+
   // Apply the resolved theme. "system" removes the attribute entirely so the
   // CSS media query decides (an empty `data-theme=""` would still match the
   // `[data-theme]` selector and pin light tokens on dark systems).
@@ -399,6 +498,7 @@ export function App() {
       appearance?: Appearance;
       sidebarVisible?: boolean;
       sidebarWidth?: number;
+      sidebarSection?: "files" | "toc";
     }) => {
       const cur = uiRef.current;
       if (isTauri()) {
@@ -409,6 +509,7 @@ export function App() {
           sidebar: {
             ...base.sidebar,
             visible: patch.sidebarVisible ?? base.sidebar.visible,
+            section: patch.sidebarSection ?? base.sidebar.section,
             width: patch.sidebarWidth ?? base.sidebar.width,
           },
         };
@@ -460,15 +561,15 @@ export function App() {
     subscriptions.add(onDocumentSaved(({ docId }) => {
       void store.refreshSavedDocument(docId).catch((error) => flash(`Save status refresh failed: ${error}`));
     }));
-    subscriptions.add(onDocumentChangedOnDisk((e) => {
-      if (e.autoReload && !store.isDirty(e.docId)) {
-        void store
-          .reloadFromDisk(e.docId)
-          .then(() => flash(`Reloaded ${e.docId.split(/[\\/]/).pop()} from disk`))
-          .catch((err) => flash(`Reload failed: ${err}`));
-      } else {
-        setModal((m) => m?.kind === "close" ? m : { kind: "disk", docId: e.docId });
-      }
+    subscriptions.add(onDocumentChangedOnDisk((event) => {
+      void (async () => {
+        const snapshot = await native.documents.snapshot(event.docId);
+        const draft = await native.drafts.info(event.docId);
+        if (event.autoReload && snapshot && !snapshot.dirty && !draft && !store.isDirty(event.docId) && !lifecycleRef.current.blocked) {
+          await store.reloadFromDisk(event.docId);
+          flash(`Reloaded ${event.docId.split(/[\\/]/).pop()} from disk`);
+        } else { setModal({ kind: "disk", docId: event.docId }); }
+      })().catch((error) => flash(`External change check failed: ${error}`));
     }));
     subscriptions.add(onWindowCloseRequested(() => {
       handlersRef.current?.requestClose("close-window");
@@ -501,6 +602,9 @@ export function App() {
     subscriptions.add(onMenuCommand((id) => {
       const h = handlersRef.current;
       if (!h) return;
+      if (id === "preferences") { setPreferencesOpen(true); return; }
+      if (id === "export") { window.dispatchEvent(new Event("app-export")); return; }
+      if (id.startsWith("history:") && document.activeElement?.closest("dialog")) { document.execCommand(id === "history:redo" ? "redo" : "undo"); return; }
       if (id === "new") void h.newDocument();
       else if (id === "open") void h.openDocument();
       else if (id === "save") void h.saveActive();
@@ -508,6 +612,8 @@ export function App() {
       else if (id === "close_tab") h.closeActiveTab();
       else if (id === "quit") void native.quit().catch((err) => flash(`Quit failed: ${err}`));
       else if (id === "new_window") void openNewWindow().catch(() => {});
+      else if (id === "find") void h.find();
+      else if (id.startsWith("history:")) h.history(id === "history:redo");
       else if (id.startsWith("mode:")) h.setMode(id.slice(5) as ViewMode);
     }));
     // Final recovery snapshot when the webview goes away (FR-006).
@@ -533,6 +639,7 @@ export function App() {
 
   // --- actions ---------------------------------------------------------------
   const addTab = useCallback((docId: string) => {
+    captureContext();
     // FR-042: new documents open in the configured default mode (a gated
     // mode such as Visual falls back to Source).
     const m = openMode(settingsRef.current?.defaultMode);
@@ -542,12 +649,14 @@ export function App() {
         : [...ts, { docId, mode: m }],
     );
     setActiveId(docId);
-  }, []);
+  }, [captureContext]);
 
   const newDocument = useCallback(async () => {
+    if (lifecycleRef.current.blocked) return;
+    if (activeId && !await lifecycleRef.current.begin("tab-switch", [activeId])) return;
     const id = await store.newDocument();
     addTab(id);
-  }, [store, addTab]);
+  }, [store, addTab, activeId]);
 
   /** FR-004: drag-reorder a tab (no document state touched — order only). */
   const moveTab = useCallback((from: number, to: number) => {
@@ -570,7 +679,9 @@ export function App() {
    */
   const openPath = useCallback(
     async (path: string): Promise<boolean> => {
+      if (lifecycleRef.current.blocked) return false;
       try {
+        if (activeId && !await lifecycleRef.current.begin("tab-switch", [activeId])) return false;
         const id = await store.openDocument(path);
         addTab(id);
         setRecents((rs) => [path, ...rs.filter((p) => p !== path)]);
@@ -580,8 +691,10 @@ export function App() {
         return false;
       }
     },
-    [store, addTab, flash],
+    [store, addTab, flash, activeId],
   );
+
+  const fileOpen = useFileOpenRequests(startupReady && settingsLoaded && recoveryLoaded && !modal && !lifecycle.blocked, openPath, flash);
 
   /** Recent-files list (empty state): a file that no longer exists is
    *  pruned from the list after the failed attempt (FR-004). */
@@ -601,6 +714,9 @@ export function App() {
 
   const saveAs = useCallback(async () => {
     if (!activeId) return;
+    if (pendingImports.current) { flash("An image import is still in progress."); return; }
+    await visualActivity.current.direct?.settle();
+    if (visualActivity.current.direct?.hasPending) { flash("Resolve pending Visual text before saving."); return; }
     const d = store.get(activeId);
     const name = d ? docName(d) : "untitled";
     const path = await native.dialogs.saveMarkdown(name === "Untitled" ? "untitled.md" : name);
@@ -612,6 +728,9 @@ export function App() {
 
   const saveActive = useCallback(async () => {
     if (!activeId) return;
+    if (pendingImports.current) { flash("An image import is still in progress."); return; }
+    await visualActivity.current.direct?.settle();
+    if (visualActivity.current.direct?.hasPending) { flash("Resolve pending Visual text before saving."); return; }
     const d = store.get(activeId);
     if (!d) return;
     if (!d.path) {
@@ -636,59 +755,17 @@ export function App() {
     }
   }, [activeId, store, flash, saveAs]);
 
-  /**
-   * Close/quit resolution (ADR-008). Builds the coordinator from live doc
-   * state; if anything needs the user, the modal drives it. A failed Save or
-   * Discard leaves the coordinator on the same step (AT-106).
-   */
-  const requestClose = useCallback(
-    (trigger: Trigger, onlyDocIds?: string[]) => {
-      if (activeCloseRef.current) return;
-      const docs = store
-        .list
-        .filter((d) => !onlyDocIds || onlyDocIds.includes(d.docId))
-        .map((d): DocStateForClose => ({
-          docId: d.docId,
-          path: d.path,
-          dirty: store.isDirty(d.docId),
-          // Drafts exist from M3V onward; the machine already handles them.
-          draft: "absent",
-          draftValid: true,
-        }));
-      const coordinator = new CloseCoordinator(trigger, docs);
-      activeCloseRef.current = coordinator;
-      void native.closeTrace("coordinator-start").catch(() => {});
-      let done = false;
-      const finish = (aborted: boolean) => {
-        if (done) return;
-        done = true;
-        activeCloseRef.current = null;
-        void native.closeTrace(aborted ? "cancelled" : "resolved").catch(() => {});
-        setModal((m) =>
-          m?.kind === "close" && m.coordinator === coordinator ? null : m,
-        );
-        if (aborted) return;
-        if (trigger === "close-tab" && onlyDocIds) {
-          const ids = onlyDocIds;
-          for (const id of ids) void store.dispose(id).catch(() => {});
-          setTabs((ts) => ts.filter((t) => !ids.includes(t.docId)));
-          setActiveId((cur) =>
-            cur && ids.includes(cur) ? null : cur,
-          );
-        } else if (trigger === "close-window") {
-          void native.confirmWindowClose().catch((err) => flash(`Close failed: ${err}`));
-        } else if (trigger === "quit") {
-          void native.quit().catch(() => {});
-        }
-      };
-      if (!coordinator.needsResolution) {
-        finish(false);
-        return;
+  const requestClose = useCallback((trigger: Trigger, onlyDocIds?: string[]) => {
+    void (async () => {
+      if (trigger === "quit") { await native.quit(); return; }
+      if (!await lifecycleRef.current.begin(trigger, onlyDocIds ?? [])) return;
+      if (trigger === "close-tab" && onlyDocIds) {
+        for (const id of onlyDocIds) store.removeClosedDocument(id);
+        setTabs((tabs) => tabs.filter((tab) => !onlyDocIds.includes(tab.docId)));
+        setActiveId((id) => id && onlyDocIds.includes(id) ? null : id);
       }
-      setModal({ kind: "close", trigger, coordinator, onDone: finish });
-    },
-    [store, flash],
-  );
+    })().catch((error) => flash(String(error)));
+  }, [store, flash]);
 
   // Re-activate the last remaining tab after a close-tab resolution.
   useEffect(() => {
@@ -709,10 +786,15 @@ export function App() {
         return;
       }
       if (activeId) {
-        setTabs((ts) => ts.map((t) => (t.docId === activeId ? { ...t, mode } : t)));
+        void lifecycleRef.current.begin("mode-switch", [activeId]).then((allowed) => {
+          if (!allowed) return;
+          captureContext();
+          if (mode === "visual") setVisualContext(viewContexts.current.get(activeId) ?? null);
+          setTabs((ts) => ts.map((t) => (t.docId === activeId ? { ...t, mode } : t)));
+        });
       }
     },
-    [activeId, flash],
+    [activeId, captureContext, flash],
   );
 
   // --- reader link handling (FR-023: relative to the containing doc) -------
@@ -722,19 +804,16 @@ export function App() {
         flash("Cannot resolve links in an unsaved document.");
         return;
       }
-      const baseNoFile = base.includes("/") ? base.slice(0, base.lastIndexOf("/") + 1) : "";
-      const raw = (baseNoFile + relative).split("/");
-      const segs: string[] = [];
-      for (const s of raw) {
-        if (s === "" || s === ".") continue;
-        if (s === "..") segs.pop();
-        else segs.push(s);
-      }
-      const abs = "/" + segs.join("/");
-      // Reuse openPath so link navigations also land in recents (FR-004).
-      void openPath(abs);
+      const id = activeId;
+      if (!id) return;
+      try {
+        const target = await native.workspace.link(id, relative);
+        if (await openPath(target.path)) {
+          if (target.fragment) window.setTimeout(() => document.getElementById(target.fragment!)?.scrollIntoView({ block: "start" }), 100);
+        }
+      } catch (error) { flash(`Could not open local link: ${error}`); }
     },
-    [openPath, flash],
+    [openPath, flash, activeId],
   );
 
   const openExternal = useCallback(
@@ -766,6 +845,40 @@ export function App() {
     [store, flash],
   );
 
+  const history = useCallback((redo: boolean) => {
+    if (lifecycleRef.current.blocked || !activeId) return;
+    const draft = visualActivity.current.draft;
+    if (draft && !draft.closed) {
+      (redo ? redoDraft : undoDraft)({ state: draft.state, dispatch: (transaction) => draft.dispatch(transaction) });
+      return;
+    }
+    void (async () => {
+      await visualActivity.current.direct?.settle();
+      if (visualActivity.current.direct?.hasPending) return;
+      await (redo ? store.redo(activeId) : store.undo(activeId));
+    })().catch((error) => flash(String(error)));
+  }, [activeId, store, flash]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement).closest?.("dialog")) return;
+      if (mode !== "visual" && mode !== "read" || paletteOpen || modal || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      if ((event.target as HTMLElement).closest('[aria-label="Inline source draft"]')) return;
+      event.preventDefault(); history(event.shiftKey);
+    };
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  }, [mode, paletteOpen, modal, history]);
+
+  const findInSource = useCallback(async () => {
+    if (!activeId || lifecycleRef.current.blocked || !await lifecycleRef.current.begin("mode-switch", [activeId])) return;
+    captureContext();
+    setTabs((tabs) => tabs.map((tab) => tab.docId === activeId ? { ...tab, mode: "source" } : tab));
+    requestAnimationFrame(() => {
+      const view = editorViewRef.current;
+      if (activeIdRef.current === activeId && view && !view.dom.closest(".pane-hidden")) { view.requestMeasure(); openSearchPanel(view); }
+    });
+  }, [activeId, captureContext]);
+
   handlersRef.current = {
     newDocument,
     openDocument,
@@ -775,12 +888,14 @@ export function App() {
     closeActiveTab,
     requestClose,
     setMode,
+    history,
+    find: findInSource,
   };
 
   // --- render -----------------------------------------------------------------
   const title = activeDoc
-    ? `${activeDoc.dirty ? "● " : ""}${docName(activeDoc)} — Markdown Viewer`
-    : "Markdown Viewer";
+    ? `${activeDoc.dirty ? "● " : ""}${docName(activeDoc)} — Marquellium`
+    : "Marquellium";
 
   // Outline computed once per content change and shared by the sidebar and
   // the reader (DOM ids and TOC entries agree by construction,
@@ -797,7 +912,12 @@ export function App() {
   // kept in a display:none container must recompute its viewport).
   useEffect(() => {
     if (mode === "source" || mode === "split") {
-      editorViewRef.current?.requestMeasure();
+      const view = editorViewRef.current;
+      view?.requestMeasure();
+      const context = activeId ? viewContexts.current.get(activeId) : null;
+      if (view && context) {
+        restoreSourceContext(view, context);
+      }
     }
   }, [mode, activeId]);
 
@@ -819,6 +939,24 @@ export function App() {
     const t = window.setTimeout(() => setReaderContent(activeContent), 200);
     return () => window.clearTimeout(t);
   }, [activeContent, mode, activeDoc?.docId]);
+
+  useEffect(() => {
+    if (mode !== "read" && mode !== "split" || !activeId) return;
+    const previous = readerEntry.current;
+    // Content updates in Split must not repeatedly snap the preview back to
+    // an old selection. Restore once on entry, after its content is current.
+    if (previous?.docId === activeId && previous.mode === mode) return;
+    if (readerContent !== activeContent) return;
+    const root = readerScrollRef.current;
+    if (!root) return;
+    const context = viewContexts.current.get(activeId);
+    if (context) restoreReaderContext(root, context, activeContent);
+    readerEntry.current = { docId: activeId, mode, scrollTop: root.scrollTop };
+  }, [mode, activeId, readerContent, activeContent]);
+
+  useEffect(() => {
+    if (mode !== "read" && mode !== "split") readerEntry.current = null;
+  }, [mode]);
 
   // FR-014: highlight the outline entry for the heading at the top of the
   // reader. rAF-throttled; headings are collected once per outline change.
@@ -876,39 +1014,25 @@ export function App() {
     return () => window.removeEventListener("blur", onBlur);
   }, [store]);
 
-  // FR-016: proportional scroll sync between the two split panes.
-  // Bidirectional with a re-entrancy flag so a programmatic scroll is
-  // recognized and dropped — no oscillation (AT for FR-016).
+  // Map actual source block positions, never the relative heights of unlike panes.
   useEffect(() => {
-    if (mode !== "split" || !splitSync) return;
-    const ed = editorViewRef.current?.scrollDOM;
-    const rd = readerScrollRef.current;
-    if (!ed || !rd) return;
-    let programmatic = false;
-    const apply = (from: HTMLElement, to: HTMLElement) => {
-      const max = from.scrollHeight - from.clientHeight;
-      if (max <= 0) return;
-      const f = from.scrollTop / max;
-      programmatic = true;
-      to.scrollTop = f * (to.scrollHeight - to.clientHeight);
+    if (mode !== "split" || !splitSync || readerContent !== activeContent) return;
+    const view = editorViewRef.current, rd = readerScrollRef.current;
+    if (!view || !rd) return;
+    const ed = view.scrollDOM;
+    let locked = false, frame = 0;
+    const sync = (action: () => void) => {
+      if (locked) return;
+      locked = true; action();
+      frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => { locked = false; }); });
     };
-    const onEdScroll = () => {
-      if (programmatic) { programmatic = false; return; }
-      apply(ed, rd);
-    };
-    const onRdScroll = () => {
-      if (programmatic) { programmatic = false; return; }
-      apply(rd, ed);
-    };
+    const onEdScroll = () => sync(() => scrollReaderOffset(rd, sourceScrollOffset(view), activeContent.length));
+    const onRdScroll = () => sync(() => { const context = readerContext(rd, activeContent); if (context) scrollSourceOffset(view, context.anchor); });
     ed.addEventListener("scroll", onEdScroll, { passive: true });
     rd.addEventListener("scroll", onRdScroll, { passive: true });
-    // Turning sync on aligns the reader to the editor's position.
-    apply(ed, rd);
-    return () => {
-      ed.removeEventListener("scroll", onEdScroll);
-      rd.removeEventListener("scroll", onRdScroll);
-    };
-  }, [mode, splitSync, activeDoc?.docId]);
+    onEdScroll();
+    return () => { cancelAnimationFrame(frame); ed.removeEventListener("scroll", onEdScroll); rd.removeEventListener("scroll", onRdScroll); };
+  }, [mode, splitSync, activeDoc?.docId, readerContent, activeContent]);
 
   // Split divider drag (in-session; no persistence for M3).
   const startSplitDrag = useCallback((e: ReactPointerEvent) => {
@@ -929,8 +1053,77 @@ export function App() {
     window.addEventListener("pointerup", up);
   }, []);
 
+  const insertMarkdown = async (markdown: string) => {
+    if (!activeId || lifecycleRef.current.blocked || !await lifecycleRef.current.begin("mode-switch", [activeId])) return;
+    captureContext();
+    const fresh = await store.captureSourceSnapshot(activeId);
+    const context = viewContexts.current.get(activeId);
+    const position = context ? restoreContext(context, fresh.text) : { anchor: fresh.text.length, head: fresh.text.length };
+    // Authorize exactly the captured selection, not an enclosing document rewrite.
+    const from = Math.min(position.anchor, position.head) as import("../core/source-map").Utf16Offset;
+    const to = Math.max(position.anchor, position.head) as typeof from;
+    const range = { docId: fresh.docId, revision: fresh.revision, from, to };
+    await store.applyLocalizedEdit({ docId: fresh.docId, baseRevision: fresh.revision, authorizedRange: range, range, openingText: fresh.text.slice(from, to), replacementText: markdown });
+  };
+  const pasteImage = async () => {
+    if (!activeId || !activeDoc?.path || lifecycleRef.current.blocked || pendingImports.current) { flash("Save the document and finish the current edit before pasting an image."); return; }
+    if (!await lifecycleRef.current.begin("mode-switch", [activeId])) return;
+    pendingImports.current++;
+    setImporting(true);
+    try {
+      captureContext();
+      const id = activeId;
+      const fresh = await store.captureSourceSnapshot(id);
+      const context = viewContexts.current.get(id);
+      const path = await native.assets.pasteImage(id, assetFolder);
+      try { await store.applyLocalizedEdit(imageInsertion(fresh, context, path)); }
+      catch (error) { throw new Error(`Image retained at ${path}; insertion could not be confirmed: ${error}`); }
+    } finally { pendingImports.current--; setImporting(false); }
+  };
+  const checkLinks = async () => {
+    if (!activeId) return;
+    const fresh = await store.captureSourceSnapshot(activeId);
+    const problems: string[] = [];
+    for (const href of localLinks(fresh.text)) {
+      try {
+        if (href.startsWith("#")) { if (!hasAnchor(fresh.text, decodeURIComponent(href.slice(1)))) problems.push(`${href}: missing anchor`); }
+        else {
+          const target = await native.workspace.link(fresh.docId, href, true);
+          if (target.fragment && target.content !== null && !hasAnchor(target.path === activeDoc?.path ? fresh.text : target.content, target.fragment)) problems.push(`${href}: missing anchor`);
+        }
+      } catch (error) { problems.push(`${href}: ${error}`); }
+    }
+    if (activeIdRef.current !== fresh.docId || docStateRef.current.get(fresh.docId)?.revision !== fresh.revision) { flash("Document changed; run link validation again."); return; }
+    setLinkResults(problems.length ? problems : ["All checked local files and anchors are available. No external links were fetched."]);
+  };
+  const openExport = async () => { if (activeId && await lifecycleRef.current.begin("mode-switch", [activeId])) setExportOpen(true); };
+  useEffect(() => { const open = () => { void openExport().catch((e) => flash(String(e))); }; window.addEventListener("app-export", open); return () => window.removeEventListener("app-export", open); });
+  const commands: PaletteCommand[] = [
+    { id: "preferences", label: "Preferences", run: () => setPreferencesOpen(true) },
+    { id: "export", label: "Export HTML / PDF / DOCX", disabled: !activeId, run: () => void openExport().catch((e) => flash(String(e))) },
+    { id: "new", label: "New document", run: () => void newDocument() },
+    { id: "open", label: "Open document", run: () => void openDocument() },
+    { id: "save", label: "Save document", disabled: !activeId, run: () => void saveActive() },
+    ...MODES.map((m) => ({ id: `mode-${m.id}`, label: `Switch to ${m.label}`, disabled: !activeId, run: () => setMode(m.id) })),
+    ...EDIT_COMMANDS.map((c) => ({ id: c.cmd, label: c.title, disabled: !activeId || mode === "read", run: () => { if (mode === "visual") window.dispatchEvent(new CustomEvent("visual-command", { detail: c.cmd })); else runEditorCommand(editorViewRef.current, c.cmd); } })),
+    { id: "find", label: "Find / replace in Source", disabled: !activeId, run: () => void findInSource() },
+    { id: "table", label: "Insert table", disabled: !activeId, run: () => void insertMarkdown("\n\n" + newTable + "\n\n").catch((e) => flash(String(e))) },
+    { id: "image", label: "Paste clipboard image", disabled: !activeId, run: () => void pasteImage().catch((e) => flash(String(e))) },
+    { id: "links", label: "Validate local links", disabled: !activeId, run: () => void checkLinks().catch((e) => flash(String(e))) },
+    { id: "sidebar", label: "Toggle sidebar", run: () => toggleSidebar(!sidebarVisible) },
+  ];
+
   return (
-    <div className="app">
+    <><div spellCheck={preferences.spellcheckEnabled} inert={lifecycle.blocked || importing} className="app" onPasteCapture={(event) => {
+      if (mode === "read" || ![...event.clipboardData.items].some((item) => item.type.startsWith("image/"))) return;
+      event.preventDefault(); void pasteImage().catch((error) => flash(String(error)));
+    }}>
+      {fileOpen.pending && <p role="status">File opening paused: {fileOpen.pending.path ?? fileOpen.pending.error}<button onClick={fileOpen.retry}>Retry opening</button><button onClick={() => void fileOpen.dismiss()}>Dismiss request</button></p>}
+      {importing && <p role="status">Importing clipboard image…</p>}
+      {preferencesOpen && <Preferences suspended={lifecycle.blocked} settings={{ ...(settingsRef.current ?? DEFAULT_SETTINGS), appearance, showFrontmatter, defaultMode }} onSave={savePreferences} onClose={() => setPreferencesOpen(false)} />}
+      {exportOpen && activeId && <ExportDialog suspended={lifecycle.blocked} docId={activeId} title={activeDoc ? docName(activeDoc) : "Document"} snapshot={async () => (await store.captureSourceSnapshot(activeId)).text} onClose={() => setExportOpen(false)} />}
+      {paletteOpen && <CommandPalette commands={commands} onClose={() => { setPaletteOpen(false); }} />}
+      {linkResults && <section role="dialog" aria-label="Link validation" className="link-results"><h2>Local link validation</h2>{linkResults.map((message, i) => <p key={i}>{message}</p>)}<button onClick={() => setLinkResults(null)}>Close link results</button></section>}
       <div className="tabbar">
         {tabs.map((t, i) => {
           const d = docState.get(t.docId);
@@ -943,7 +1136,15 @@ export function App() {
                 (d?.dirty ? " dirty" : "") +
                 (dragTabIdx === i ? " dragging" : "")
               }
-              onClick={() => setActiveId(t.docId)}
+              onClick={() => {
+                if (activeId === t.docId) return;
+                void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
+                  if (!allowed) return;
+                  captureContext();
+                  setVisualContext(viewContexts.current.get(t.docId) ?? null);
+                  setActiveId(t.docId);
+                });
+              }}
               draggable
               onDragStart={(e) => {
                 setDragTabIdx(i);
@@ -986,6 +1187,20 @@ export function App() {
       </div>
 
       <div className="toolbar">
+        <button disabled={lifecycle.blocked} onClick={() => { captureContext(); setPaletteOpen(true); }} title="Command palette (Cmd+Shift+P)">Commands…</button>
+        <button onClick={() => setPreferencesOpen(true)}>Preferences…</button>
+        <button disabled={!activeId} onClick={() => void openExport().catch((e) => flash(String(e)))}>Export…</button>
+        <details><summary>Document tools</summary><button disabled={!activeId} onClick={() => void insertMarkdown("\n\n" + newTable + "\n\n").catch((e) => flash(String(e)))}>Insert table</button>
+          <button disabled={!activeId} onClick={() => void checkLinks().catch((e) => flash(String(e)))}>Validate links</button>
+          <label>Assets folder <input value={assetFolder} onChange={(e) => setAssetFolder(e.target.value)} /></label>
+          <button disabled={!activeId} onClick={() => void pasteImage().catch((e) => flash(String(e)))}>Paste image</button>
+          <label><input type="checkbox" checked={showFrontmatter} onChange={(e) => { setShowFrontmatter(e.target.checked); const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), showFrontmatter: e.target.checked }; settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); }} />Show frontmatter</label>
+          <label>Default opening mode <select value={defaultMode} onChange={(e) => {
+            setDefaultMode(e.target.value as ViewMode);
+            const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), defaultMode: e.target.value as ViewMode };
+            settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); else localStorage.setItem(UI_LS_KEY, JSON.stringify(next));
+          }}>{MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        </details>
         <button
           className={
             "icon-btn" + (sidebarVisible ? " active" : "")
@@ -1019,6 +1234,9 @@ export function App() {
         </button>
         <button onClick={() => void newDocument()}>New</button>
         <button onClick={() => void openDocument()}>Open…</button>
+        <details className="recent-menu"><summary>Open Recent</summary><div className="recent-popup">
+          {recents.length ? recents.map((path) => <button key={path} title={path} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); void openRecent(path); }}>{docName({ docId: "", path })}</button>) : <p>No recent documents</p>}
+        </div></details>
         <button onClick={() => void saveActive()} disabled={!activeDoc}>
           Save
         </button>
@@ -1064,8 +1282,9 @@ export function App() {
             key={c.cmd}
             className="fmt"
             title={c.title}
-            disabled={!activeDoc || mode === "read"}
+            disabled={!activeDoc || mode === "read" || lifecycle.blocked}
             onClick={() => {
+              if (mode === "visual") { window.dispatchEvent(new CustomEvent("visual-command", { detail: c.cmd })); return; }
               runEditorCommand(editorViewRef.current, c.cmd);
               // Toolbar clicks steal focus from the CM view; hand it back
               // so typing continues where the user left off.
@@ -1153,6 +1372,19 @@ export function App() {
             width={sidebarWidth}
             onToggle={toggleSidebar}
             onResize={commitSidebarWidth}
+            section={sidebarSection}
+            onSectionChange={(section) => { setSidebarSection(section); persistUi({ sidebarSection: section }); }}
+            files={<WorkspaceTree onOpen={(path) => { void openPath(path); }} />}
+            onNavigate={(line) => {
+              const breaks = [...activeContent.matchAll(/\r\n|\r|\n/g)];
+              const previous = breaks[line - 2];
+              const position = line <= 1 ? 0 : previous ? previous.index + previous[0].length : activeContent.length;
+              const context = { text: activeContent, anchor: Math.max(0, position), head: Math.max(0, position) };
+              if (activeId) viewContexts.current.set(activeId, context);
+              if (mode === "visual") setVisualContext(context);
+              else if (mode === "read") restoreReaderContext(readerScrollRef.current!, context, activeContent);
+              else if (editorViewRef.current) restoreSourceContext(editorViewRef.current, context);
+            }}
           />
         )}
         {activeDoc ? (
@@ -1160,9 +1392,10 @@ export function App() {
           // switches (CSS visibility, not unmount), so the CM cursor and the
           // reader scroll position survive by construction.
           <div className="panes" ref={panesRef}>
+            {mode === "visual" && <VisualSurface key={activeDoc.docId} snapshot={{ docId: activeDoc.docId, revision: activeDoc.revision, text: activeContent }} docPath={activeDoc.path} onOpenLocal={readerOpenLocal} onOpenExternal={openExternal} store={store} onActivity={onVisualActivity} context={visualContext} onContext={(context) => viewContexts.current.set(activeDoc.docId, context)} beforeOpen={(docId) => lifecycleRef.current.begin("mode-switch", [docId])} />}
             <div
               className={
-                "pane pane-source" + (mode === "read" ? " pane-hidden" : "")
+                "pane pane-source" + (mode === "read" || mode === "visual" ? " pane-hidden" : "")
               }
               style={
                 mode === "split"
@@ -1176,6 +1409,7 @@ export function App() {
                 content={activeContent}
                 store={store}
                 onView={setEditorView}
+                  spellcheck={preferences.spellcheckEnabled}
               />
             </div>
             {mode === "split" && (
@@ -1189,7 +1423,7 @@ export function App() {
             )}
             <div
               className={
-                "pane pane-reader" + (mode === "source" ? " pane-hidden" : "")
+                "pane pane-reader" + (mode === "source" || mode === "visual" ? " pane-hidden" : "")
               }
             >
               <Reader
@@ -1199,6 +1433,7 @@ export function App() {
                 onOpenLocal={readerOpenLocal}
                 onOpenExternal={openExternal}
                 scrollRef={setReaderScrollEl}
+                showFrontmatter={showFrontmatter}
               />
             </div>
           </div>
@@ -1233,19 +1468,16 @@ export function App() {
         <span>{activeDoc ? docName(activeDoc) : "—"}</span>
         {activeDoc?.dirty && <span className="status-dirty">unsaved</span>}
         <span className="status-right">
-          {activeDoc ? `${docText(activeDoc).length} chars` : ""} ·{" "}
+          {activeDoc ? `${statistics.words} words · ${statistics.characters} chars · ~${statistics.minutes} min read` : ""} ·{" "}
           {isTauri() ? "Tauri" : "browser (no Rust core)"}
         </span>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div role="status" className="toast">{toast}</div>}
       {dropActive && (
         <div className="drop-overlay" aria-hidden="true">
           <span>Drop to open</span>
         </div>
-      )}
-      {modal?.kind === "close" && (
-        <CloseDialog modal={modal} store={store} setModal={setModal} flash={flash} />
       )}
       {modal?.kind === "disk" && (
         <DiskDialog
@@ -1257,148 +1489,15 @@ export function App() {
         />
       )}
       {modal?.kind === "recovery" && (
-        <RecoveryDialog modal={modal} store={store} setModal={setModal} flash={flash} />
+        <RecoveryDialog modal={modal} store={store} setModal={setModal} flash={flash} onRestored={addTab} />
       )}
-    </div>
+    </div>{lifecycle.dialog}</>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Dialogs
 // ---------------------------------------------------------------------------
-
-/**
- * ADR-008 modal. Renders the coordinator's current step; after each user
- * choice the machine advances (or stays put, on failure) and this dialog
- * re-renders. When the machine reaches the execute step it fires onDone.
- */
-function CloseDialog({
-  modal,
-  store,
-  setModal,
-  flash,
-}: {
-  modal: Extract<Modal, { kind: "close" }>;
-  store: DocumentStore;
-  setModal: (m: Modal) => void;
-  flash: (m: string) => void;
-}) {
-  const coordinator = modal.coordinator;
-  const [saving, setSaving] = useState(false);
-  // The coordinator is mutated in place (pure bookkeeping by design); the
-  // tick is what tells React a step changed.
-  const [tick, force] = useReducer((x: number) => x + 1, 0);
-
-  useEffect(() => {
-    if (coordinator.isAborted) modal.onDone(true);
-    else if (coordinator.current?.kind === "execute") modal.onDone(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, coordinator, modal.onDone]);
-
-  const step = coordinator.current;
-  if (!step || coordinator.isAborted) return null;
-
-  const cancel = () => {
-    coordinator.cancel();
-    modal.onDone(true);
-    setModal(null);
-  };
-
-  if (step.kind === "draft") {
-    // Drafts land in M3V; the machine already supports this branch.
-    return (
-      <Overlay>
-        <div className="dialog">
-          <h3>Unapplied draft in “{step.filename}”</h3>
-          <div className="dialog-actions">
-            <button
-              onClick={() => {
-                if (!coordinator.chooseDraft(step.docId!, "apply")) {
-                  flash("Draft could not be applied (invalid).");
-                }
-                force();
-              }}
-            >
-              Apply
-            </button>
-            <button
-              onClick={() => {
-                coordinator.chooseDraft(step.docId!, "discard");
-                force();
-              }}
-            >
-              Discard
-            </button>
-            <button onClick={cancel}>Cancel</button>
-          </div>
-        </div>
-      </Overlay>
-    );
-  }
-
-  // canonical step
-  const heading =
-    modal.trigger === "quit"
-      ? "Quit with unsaved changes?"
-      : modal.trigger === "close-window"
-        ? "Close this window with unsaved changes?"
-        : "Close this document with unsaved changes?";
-
-  return (
-    <Overlay>
-      <div className="dialog">
-        <h3>Unsaved changes in “{step.filename}”</h3>
-        <p className="muted">{heading}</p>
-        <div className="dialog-actions">
-          <button
-            disabled={saving}
-            onClick={() =>
-              void (async () => {
-                setSaving(true);
-                const d = store.get(step.docId!);
-                let res: SaveResult;
-                if (!d?.path) {
-                  const name = d ? docName(d) : "untitled";
-                  const path = await native.dialogs.saveMarkdown(
-                    name === "Untitled" ? "untitled.md" : name,
-                  );
-                  if (!path) {
-                    setSaving(false);
-                    flash("Save dialog cancelled — choose Save, Discard, or Cancel.");
-                    return;
-                  }
-                  res = await store.saveAs(step.docId!, path);
-                } else {
-                  res = await store.save(step.docId!);
-                }
-                if (res.ok) {
-                  coordinator.chooseCanonical(step.docId!, "save");
-                } else {
-                  // Stay on this step: retry / discard / cancel. (AT-106)
-                  coordinator.saveFailed(step.docId!);
-                  flash(`Save failed: ${res.message ?? res.reason}`);
-                }
-                setSaving(false);
-                force();
-              })()
-            }
-          >
-            Save
-          </button>
-          <button
-            onClick={() => {
-              coordinator.chooseCanonical(step.docId!, "discard");
-              force();
-            }}
-          >
-            Discard
-          </button>
-          <button onClick={cancel}>Cancel</button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
 
 /** External disk change (FR-005): auto-reload when clean, prompt when dirty. */
 function DiskDialog({
@@ -1431,7 +1530,8 @@ function DiskDialog({
               void (async () => {
                 setBusy(true);
                 try {
-                  await store.reloadFromDisk(modal.docId);
+                  if (!await native.lifecycle.begin("reload-document", [modal.docId])) return;
+                  await store.refreshSavedDocument(modal.docId);
                   flash(`Reloaded ${name} from disk`);
                   setModal(null);
                 } catch (err) {
@@ -1459,11 +1559,13 @@ function RecoveryDialog({
   store,
   setModal,
   flash,
+  onRestored,
 }: {
   modal: Extract<Modal, { kind: "recovery" }>;
   store: DocumentStore;
   setModal: (m: Modal) => void;
   flash: (m: string) => void;
+  onRestored: (docId: string) => void;
 }) {
   const [, force] = useReducer((x: number) => x + 1, 0);
   const remaining = modal.items.filter((i) => !recoveryDismissed.has(i.key));
@@ -1489,15 +1591,15 @@ function RecoveryDialog({
                     void (async () => {
                       try {
                         const payload = await native.recovery.restore(i.key);
-                        const id = await store.newDocument();
-                        const text = new TextDecoder().decode(
-                          new Uint8Array(payload.bytes),
-                        );
-                        await store.editFullContent(id, text);
+                        await store.attachDocument(payload.docId);
+                        onRestored(payload.docId);
+                        if (payload.draftCopyId) {
+                          await store.attachDocument(payload.draftCopyId);
+                          onRestored(payload.draftCopyId);
+                        }
                         recoveryDismissed.add(i.key);
-                        flash(
-                          `Restored snapshot as Untitled (was ${i.path ?? "untitled"})`,
-                        );
+                        if (payload.hasDraft) await openVisualPrototype(payload.docId);
+                        flash(payload.conflicted ? "Recovered canonical and draft text as separate safe copies; the original file is unchanged." : "Recovered an untitled copy; the original file is unchanged.");
                       } catch (err) {
                         flash(`Restore failed: ${err}`);
                       }

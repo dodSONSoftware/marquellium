@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Marquellium
+Comment=Local-first Markdown viewer and editor
+Exec={{exec}} %F
+Icon={{icon}}
+Terminal=false
+Categories=Office;TextEditor;
+MimeType=text/markdown;text/plain;
+StartupWMClass=markdown-viewer
