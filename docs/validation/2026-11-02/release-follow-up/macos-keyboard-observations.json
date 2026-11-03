@@ -1,0 +1,14 @@
+{
+  "method": "Native app AX inspection and keyboard actions through Computer Use",
+  "isolatedData": "/private/tmp/marquellium-release-acceptance/keyboard-data",
+  "observations": [
+    "Documents tab group exposes named selected tabs and separate close buttons",
+    "Sidebar separator focus retained after Right changed 240 to 250 pixels",
+    "Split divider focus retained after Right changed 50 to 55 percent",
+    "Left moved tab focus while Untitled stayed selected; Return activated keyboard.md"
+  ],
+  "limits": [
+    "Targeted keyboard inspection only; full VoiceOver acceptance remains open",
+    "User interaction observed in disposable document; unsaved text retained"
+  ]
+}

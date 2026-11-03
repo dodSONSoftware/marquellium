@@ -1,0 +1,18 @@
+{
+  "ipv4Routes": [
+    "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT                                                       "
+  ],
+  "controls": [
+    {
+      "address": "1.1.1.1",
+      "errno": 101,
+      "outcome": "unreachable"
+    },
+    {
+      "address": "2606:4700:4700::1111",
+      "errno": 101,
+      "outcome": "unreachable"
+    }
+  ],
+  "scope": "Native app functionality in a network-isolated Linux namespace; not a packet capture or proof of no attempted connections"
+}

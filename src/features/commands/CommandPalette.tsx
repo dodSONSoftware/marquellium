@@ -13,7 +13,7 @@ export function CommandPalette({ commands, onClose }: { commands: PaletteCommand
     if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setSelected(matches.length ? (index + (e.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length : 0); }
     if (e.key === "Enter" && matches[index]) { e.preventDefault(); run(matches[index]!); }
     if (e.key === "Tab") { e.preventDefault(); input.current?.focus(); }
-  }}><label>Find a command <input ref={input} aria-label="Find a command" aria-controls="palette-options" aria-activedescendant={matches[index] ? `command-${matches[index]!.id}` : undefined} value={query} onChange={(e) => { setQuery(e.target.value); setSelected(0); }} /></label>
+  }}><label>Find a command <input ref={input} aria-label="Find a command" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="palette-options" aria-activedescendant={matches[index] ? `command-${matches[index]!.id}` : undefined} value={query} onChange={(e) => { setQuery(e.target.value); setSelected(0); }} /></label>
     <div role="listbox" id="palette-options">{matches.map((command, i) => <button role="option" aria-selected={i === index} id={`command-${command.id}`} key={command.id} onClick={() => run(command)}>{command.label}</button>)}</div>
     {!matches.length && <p>No matching commands.</p>}<button onClick={onClose}>Close palette</button>
   </section></div>;

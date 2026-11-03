@@ -1,0 +1,6 @@
+Openbox-Message: Unable to find a valid menu file "/var/lib/openbox/debian-menu.xml"
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true)), ("window-604a3ce8-785b-4524-81aa-b7c62996fb93", Ok(false))]
+close-flow quit source=native-menu
+close-flow quit focus=[("window-604a3ce8-785b-4524-81aa-b7c62996fb93", Ok(false)), ("main", Ok(true))]
+close-flow window=main stage=Destroyed

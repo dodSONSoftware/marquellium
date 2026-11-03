@@ -543,3 +543,11 @@ body {
 @media print { .print-controls{display:none!important}html,body,#root{height:auto!important;overflow:visible!important}.export-document{display:block} }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 .visual-block { max-width:var(--reader-max-width);margin-inline:auto; }
+
+/* Tab selection and close remain separate keyboard controls. */
+.document-tabs { display: flex; align-items: stretch; }
+.tab-select { display: flex; align-items: center; gap: .5rem; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; }
+
+/* The supplied lockup stays above the tabs and follows the resolved appearance. */
+.app-brand { flex: 0 0 auto; padding: 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.app-brand img { display: block; width: 224px; height: auto; max-width: 100%; }

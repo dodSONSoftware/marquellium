@@ -6,7 +6,7 @@ A local-first, cross-platform **Markdown viewer and editor** — Read, Source, S
 
 ## Status
 
-Current checkpoint (November 2, 2026): M0–M3 foundations, M3V acceptance, and **M4 editing/document features** are implemented and validated on macOS arm64. The reviewed checkpoint includes the M3V follow-ups, M4/M5 functional delivery and M6 portability work; see the [checkpoint review](docs/checkpoint-review-2026-11-02.md). M5 functional delivery is implemented; release acceptance remains open. M6 portability delivery is underway: macOS and Debian arm64 file-open/native smoke checks pass; Windows and the full platform acceptance matrix remain open. See [M6 results](docs/m6-results.md).
+Current checkpoint (November 2, 2026): M0–M3 foundations, M3V acceptance, and **M4 editing/document features** are implemented and validated on macOS arm64. The reviewed checkpoint includes the M3V follow-ups, M4/M5 functional delivery and M6 portability work; see the [checkpoint review](docs/checkpoint-review-2026-11-02.md). M5 functional delivery is implemented; release acceptance remains open. M6 portability delivery is underway: macOS and Debian arm64 file-open/native smoke checks pass; Windows and the full platform acceptance matrix remain open. See [M6 results](docs/m6-results.md). The [release acceptance follow up](docs/release-follow-up-2026-11-02.md) records keyboard accessibility fixes, rebuilt candidates, 22 installed Debian checks and 16 AppImage checks, including native Quit/Cancel and Linux offline acceptance.
 
 - **M0:** architecture, ADRs, fixtures and scaffold established.
 - **M1–M3:** document durability, multi-window registry, Reader, Source/Split, shared history, sessions and recents implemented.

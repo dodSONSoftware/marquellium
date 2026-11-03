@@ -58,7 +58,7 @@ PRD §17.1: "produce a requirement-to-task map, explicitly identifying unmet dep
 | FR-025 | KaTeX | ✅ M4 — bounded KaTeX with trust disabled inline/display rendering and validated math source drafts |
 | FR-026 | Frontmatter (raw preserved, compact display) | ✅ M4 — raw frontmatter preserved, compact metadata card, persistent visibility control, dialect-consistent outline |
 | FR-027 | Link validation (missing files/anchors; no network) | ✅ M4 — local files and Markdown anchors, references, scope checks, no remote traversal |
-| FR-028 | Exports HTML/PDF/DOCX | ✅ M5 implementation — static HTML, native Print/Save PDF, native DOCX with visible fallbacks; release gate remains open |
+| FR-028 | Exports HTML/PDF/DOCX | ✅ M5 implementation — static HTML, native Print/Save PDF, native DOCX with visible fallbacks; native Debian export/cancel and independent LibreOffice inspection passed in [release follow up](release-follow-up-2026-11-02.md); release gate remains open |
 | FR-029 | Dialect profiles | P2 |
 
 ## UI/preferences (FR-030…036, FR-049, FR-050, FR-055)

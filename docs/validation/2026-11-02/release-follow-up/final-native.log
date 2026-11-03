@@ -1,0 +1,60 @@
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='org.a11y.Bus' requested by ':1.2' (uid=0 pid=9152 comm="/usr/bin/markdown-viewer /tmp/marquellium-m6-80yyh")
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.4' (uid=0 pid=9152 comm="/usr/bin/markdown-viewer /tmp/marquellium-m6-80yyh")
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='org.freedesktop.portal.Documents' requested by ':1.5' (uid=0 pid=9168 comm="/usr/libexec/xdg-desktop-portal")
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.6' (uid=0 pid=9173 comm="/usr/libexec/xdg-document-portal")
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'org.freedesktop.portal.Documents'
+fusermount3: fuse device not found, try 'modprobe fuse' first
+error: fuse init failed: Can't mount path /root/.cache/doc
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.5' (uid=0 pid=9168 comm="/usr/libexec/xdg-desktop-portal")
+dbus-daemon[9164]: Activating service name='org.a11y.atspi.Registry' requested by ':1.1' (uid=0 pid=9186 comm="/usr/libexec/xdg-desktop-portal-gtk")
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:17.089: error: Could not connect: No such file or directory
+
+dbus-daemon[9164]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:9168): xdg-desktop-portal-WARNING **: 04:16:17.095: Failed to create RealtimeKit proxy: Could not connect: No such file or directory
+[W][02039.185500] pw.conf      | [          conf.c:  939 try_load_conf()] can't load config client.conf: No such file or directory
+[E][02039.185508] pw.conf      | [          conf.c:  963 pw_conf_load_conf_for_context()] can't load default config client.conf: No such file or directory
+
+(/usr/libexec/xdg-desktop-portal:9168): xdg-desktop-portal-WARNING **: 04:16:17.098: Failed connect to PipeWire: Couldn't create PipeWire context
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'org.freedesktop.portal.Desktop'
+PASS cold CLI open with spaces and Unicode
+PASS relative local image loads
+PASS KaTeX renders in native webview
+PASS Mermaid renders in native webview
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:22.390: Unhandled parent window type 
+
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:22.390: Failed to associate portal window with parent window 
+dbus-daemon[9115]: [session uid=0 pid=9115] Activating service name='ca.desrt.dconf' requested by ':1.8' (uid=0 pid=9186 comm="/usr/libexec/xdg-desktop-portal-gtk")
+dbus-daemon[9115]: [session uid=0 pid=9115] Successfully activated service 'ca.desrt.dconf'
+PASS native HTML export cancellation returns without writing
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:24.424: Unhandled parent window type 
+
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:24.424: Failed to associate portal window with parent window 
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:27.112: Unhandled parent window type 
+
+
+** (xdg-desktop-portal-gtk:9186): WARNING **: 04:16:27.112: Failed to associate portal window with parent window 
+PASS native print cancellation keeps the preview available
+PASS second native window shares canonical document
+PASS second process hands relative path to focused window
+PASS file opening leaves other window tabs alone
+PASS explicit table draft opens
+PASS incoming file request uses draft navigation coordinator
+PASS Cancel retains draft and offers explicit request retry
+PASS dismissal preserves draft and document
+PASS installed desktop Open With forwards spaces and Unicode
+PASS native GTK Ctrl+Q coordinates both windows before closing
+PASS Quit Cancel keeps both native windows and the draft
+PASS second Quit still prompts for the retained draft
+PASS discarding the disposable draft quits the native process
+X connection to :99 broken (explicit kill or server shutdown).

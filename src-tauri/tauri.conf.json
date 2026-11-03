@@ -59,7 +59,11 @@
     ],
     "linux": {
       "deb": {
-        "desktopTemplate": "linux/marquellium.desktop"
+        "desktopTemplate": "linux/marquellium.desktop",
+        "depends": [
+          "xdg-desktop-portal",
+          "xdg-desktop-portal-gtk"
+        ]
       },
       "rpm": {
         "desktopTemplate": "linux/marquellium.desktop"

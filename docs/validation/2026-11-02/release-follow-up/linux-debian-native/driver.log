@@ -1,0 +1,14 @@
+Openbox-Message: Unable to find a valid menu file "/var/lib/openbox/debian-menu.xml"
+
+(markdown-viewer:9152): Gtk-WARNING **: 04:16:31.133: Could not load a pixbuf from /org/gtk/libgtk/theme/Adwaita/assets/bullet-symbolic.svg.
+This may indicate that pixbuf loaders or the mime database could not be found.
+
+** (markdown-viewer:9152): WARNING **: 04:16:31.167: Couldn't connect to D-Bus system bus, Could not connect: No such file or directory
+
+** (markdown-viewer:9152): WARNING **: 04:16:32.317: Couldn't connect to D-Bus system bus, Could not connect: No such file or directory
+close-flow window=print-1793679389798843755 stage=Destroyed
+close-flow quit source=native-menu
+close-flow quit focus=[("window-1b9f6252-eb21-4ae7-b85c-0f441342cbf8", Ok(false)), ("main", Ok(true))]
+close-flow quit source=native-menu
+close-flow quit focus=[("main", Ok(true)), ("window-1b9f6252-eb21-4ae7-b85c-0f441342cbf8", Ok(false))]
+close-flow window=main stage=Destroyed

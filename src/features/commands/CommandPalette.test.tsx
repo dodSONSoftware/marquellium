@@ -11,6 +11,7 @@ it("filters, skips disabled commands, executes with keyboard and restores focus"
   expect(document.activeElement?.getAttribute("aria-label")).toBe("Find a command");
   expect(host.querySelectorAll('[role="option"]')).toHaveLength(2);
   const input = host.querySelector("input")!;
+  expect(input.getAttribute("role")).toBe("combobox"); expect(input.getAttribute("aria-expanded")).toBe("true"); expect(input.getAttribute("aria-autocomplete")).toBe("list");
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "visual"); input.dispatchEvent(new Event("input", { bubbles: true })); });
   expect(host.querySelectorAll('[role="option"]')).toHaveLength(1);
   await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));

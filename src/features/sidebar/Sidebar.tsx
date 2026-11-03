@@ -1,3 +1,4 @@
+import { ResizeHandle } from "../layout/ResizeHandle";
 /**
  * Left sidebar (FR-047, pulled forward from M3): a single collapsible,
  * user-resizable panel hosting the document outline (the Files section
@@ -97,13 +98,7 @@ export function Sidebar({ outline, tocActive, activeSlug, width, onToggle, onRes
           </p>
         )}</div>
       </div>
-      <div
-        className="sidebar-resize"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        onPointerDown={startDrag}
-      />
+      <ResizeHandle className="sidebar-resize" label="Resize sidebar" value={dragWidth ?? width} min={SIDEBAR_MIN_WIDTH} max={SIDEBAR_MAX_WIDTH} step={10} unit="pixels" onResize={onResize} onPointerDown={startDrag} />
     </aside>
   );
 }

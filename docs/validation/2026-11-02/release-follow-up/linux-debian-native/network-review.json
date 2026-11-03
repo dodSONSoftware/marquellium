@@ -1,0 +1,6 @@
+{
+  "scope": "connect/sendto/sendmsg in tauri-driver and descendants; not host-wide packet capture",
+  "syscallLines": 13066,
+  "inetDestinationRecords": 155,
+  "nonLoopbackDestinations": []
+}

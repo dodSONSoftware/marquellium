@@ -1,3 +1,7 @@
+import logoLight from "../assets/branding/marquellium-logo-light.svg";
+import logoDark from "../assets/branding/marquellium-logo-dark.svg";
+import { ResizeHandle } from "../features/layout/ResizeHandle";
+import { DocumentTabs } from "../features/documents/DocumentTabs";
 import { useFileOpenRequests } from "../features/documents/useFileOpenRequests";
 import { useBenchmark } from "../features/settings/useBenchmark";
 import { ExportDialog } from "../features/export/ExportDialog";
@@ -183,8 +187,6 @@ export function App() {
   // FR-004: recent file paths, most-recent-first (restored at startup,
   // shown in the empty state, capped + de-duped on persist by Rust).
   const [recents, setRecents] = useState<string[]>([]);
-  // FR-004: index of the tab being drag-reordered (null when idle).
-  const [dragTabIdx, setDragTabIdx] = useState<number | null>(null);
   // Latest docState for the debounced session writer (avoid re-running it
   // on every store broadcast).
   const docStateRef = useRef(docState);
@@ -1124,67 +1126,15 @@ export function App() {
       {exportOpen && activeId && <ExportDialog suspended={lifecycle.blocked} docId={activeId} title={activeDoc ? docName(activeDoc) : "Document"} snapshot={async () => (await store.captureSourceSnapshot(activeId)).text} onClose={() => setExportOpen(false)} />}
       {paletteOpen && <CommandPalette commands={commands} onClose={() => { setPaletteOpen(false); }} />}
       {linkResults && <section role="dialog" aria-label="Link validation" className="link-results"><h2>Local link validation</h2>{linkResults.map((message, i) => <p key={i}>{message}</p>)}<button onClick={() => setLinkResults(null)}>Close link results</button></section>}
-      <div className="tabbar">
-        {tabs.map((t, i) => {
-          const d = docState.get(t.docId);
-          return (
-            <div
-              key={t.docId}
-              className={
-                "tab" +
-                (t.docId === activeId ? " active" : "") +
-                (d?.dirty ? " dirty" : "") +
-                (dragTabIdx === i ? " dragging" : "")
-              }
-              onClick={() => {
-                if (activeId === t.docId) return;
-                void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
-                  if (!allowed) return;
-                  captureContext();
-                  setVisualContext(viewContexts.current.get(t.docId) ?? null);
-                  setActiveId(t.docId);
-                });
-              }}
-              draggable
-              onDragStart={(e) => {
-                setDragTabIdx(i);
-                e.dataTransfer.effectAllowed = "move";
-                // Required by some engines to begin a drag.
-                e.dataTransfer.setData("text/plain", t.docId);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (dragTabIdx === null || dragTabIdx === i) return;
-                e.dataTransfer.dropEffect = "move";
-                moveTab(dragTabIdx, i);
-                setDragTabIdx(i);
-              }}
-              onDrop={(e) => e.preventDefault()}
-              onDragEnd={() => setDragTabIdx(null)}
-            >
-              <span className="tab-name">{d ? docName(d) : t.docId}</span>
-              {d?.dirty && <span className="dot" aria-label="unsaved changes" />}
-              <button
-                className="tab-close"
-                aria-label={`Close ${d ? docName(d) : t.docId}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  requestClose("close-tab", [t.docId]);
-                }}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
-        <button
-          className="tab-new"
-          onClick={() => void newDocument()}
-          aria-label="New document"
-        >
-          +
-        </button>
-      </div>
+      <header className="app-brand"><img src={effectiveTheme === "dark" ? logoDark : logoLight} alt="Marquellium" width={224} height={53} draggable={false} /></header>
+      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { docId: tab.docId, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false }; })} activeId={activeId}
+        onSelect={(id) => {
+          if (activeId === id) return;
+          void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
+            if (!allowed) return;
+            captureContext(); setVisualContext(viewContexts.current.get(id) ?? null); setActiveId(id);
+          });
+        }} onClose={(id) => requestClose("close-tab", [id])} onNew={() => void newDocument()} onMove={moveTab} />
 
       <div className="toolbar">
         <button disabled={lifecycle.blocked} onClick={() => { captureContext(); setPaletteOpen(true); }} title="Command palette (Cmd+Shift+P)">Commands…</button>
@@ -1391,7 +1341,7 @@ export function App() {
           // FR-012B/AT-102: editor and reader stay MOUNTED across mode
           // switches (CSS visibility, not unmount), so the CM cursor and the
           // reader scroll position survive by construction.
-          <div className="panes" ref={panesRef}>
+          <div className="panes" id="document-panel" role="tabpanel" aria-label={docName(activeDoc)} ref={panesRef}>
             {mode === "visual" && <VisualSurface key={activeDoc.docId} snapshot={{ docId: activeDoc.docId, revision: activeDoc.revision, text: activeContent }} docPath={activeDoc.path} onOpenLocal={readerOpenLocal} onOpenExternal={openExternal} store={store} onActivity={onVisualActivity} context={visualContext} onContext={(context) => viewContexts.current.set(activeDoc.docId, context)} beforeOpen={(docId) => lifecycleRef.current.begin("mode-switch", [docId])} />}
             <div
               className={
@@ -1413,13 +1363,7 @@ export function App() {
               />
             </div>
             {mode === "split" && (
-              <div
-                className="pane-divider"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize split panes"
-                onPointerDown={startSplitDrag}
-              />
+              <ResizeHandle className="pane-divider" label="Resize split panes" value={dragPct ?? splitPct} min={20} max={80} step={5} unit="percent" onResize={setSplitPct} onPointerDown={startSplitDrag} />
             )}
             <div
               className={

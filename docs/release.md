@@ -10,3 +10,5 @@ M5 implementation is not by itself a signed release. The development bundle reta
 6. Produce the final ZIP/DMG from the stapled app, hash it, and test installation/file association/Gatekeeper on a clean macOS account. Do not publish development/ad hoc bundles as notarized releases.
 
 M6 owns real Windows/Linux installers, file association and native print acceptance. No macOS result proves platform parity. Offline core/network capture, cold-launch measurements and any remaining accessibility or P0/P1 acceptance gaps must remain explicit in the milestone report.
+
+Current [release acceptance follow up](release-follow-up-2026-11-02.md) records the completed keyboard controls and Linux native Quit/Cancel, offline and export checks. It lists the remaining platform, signing and acceptance gates without changing historical evidence.
