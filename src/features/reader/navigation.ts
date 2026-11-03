@@ -32,6 +32,10 @@ export function scrollReaderOffset(root: HTMLElement, offset: number, length: nu
     const start = Number(candidate.dataset.sourceStart);
     return start <= offset && (!best || start > Number(best.dataset.sourceStart)) ? candidate : best;
   }, null);
-  if (node) root.scrollTop += node.getBoundingClientRect().top - root.getBoundingClientRect().top;
+  if (node) {
+    const bounds = root.getBoundingClientRect();
+    const scale = root.offsetHeight ? bounds.height / root.offsetHeight || 1 : 1;
+    root.scrollTop += (node.getBoundingClientRect().top - bounds.top) / scale;
+  }
   else root.scrollTop = 0; // Frontmatter can precede the first rendered source anchor.
 }

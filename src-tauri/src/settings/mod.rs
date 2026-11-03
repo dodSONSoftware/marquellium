@@ -17,6 +17,11 @@ pub struct Settings {
     /// Appearance: "light" | "dark" | "system".
     #[serde(default = "default_appearance")]
     pub appearance: String,
+    /// Application chrome scale in percent; document display is independent.
+    #[serde(default = "ui_scale")]
+    pub ui_scale: u32,
+    #[serde(default = "ui_scale")]
+    pub document_scale: u32,
     /// Default mode for freshly opened documents (FR-042). Starts as
     /// "source" until the M3V gate passes; user-overridable throughout.
     #[serde(default = "default_mode")]
@@ -70,6 +75,9 @@ impl Default for SidebarSettings {
     }
 }
 
+fn ui_scale() -> u32 {
+    100
+}
 fn reader_font() -> String {
     "system-ui".into()
 }
@@ -115,6 +123,8 @@ impl Default for Settings {
         Self {
             schema_version: SETTINGS_VERSION,
             appearance: default_appearance(),
+            ui_scale: ui_scale(),
+            document_scale: ui_scale(),
             default_mode: default_mode(),
             spellcheck_enabled: true,
             show_frontmatter: true,
@@ -158,6 +168,13 @@ impl Settings {
             if font.is_empty() || font.len() > 100 || font.chars().any(|c| c.is_control()) {
                 *font = fallback;
             }
+        }
+        for scale in [&mut self.ui_scale, &mut self.document_scale] {
+            *scale = if *scale == 0 {
+                ui_scale()
+            } else {
+                (*scale).clamp(75, 200)
+            };
         }
         self.font_size = self.font_size.clamp(12, 40);
         self.editor_font_size = self.editor_font_size.clamp(10, 32);
@@ -313,5 +330,50 @@ mod m5_tests {
         let reloaded = store.load();
         assert_eq!(reloaded.extra["future"], json!({"keep":true}));
         assert_eq!(reloaded.sidebar.extra["future"], 42);
+    }
+}
+
+#[cfg(test)]
+mod ui_scale_tests {
+    use super::*;
+
+    #[test]
+    fn older_settings_default_to_normal_scale_and_round_trip_without_losing_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, r#"{"appearance":"dark","future":{"keep":true}}"#).unwrap();
+        let store = SettingsStore::new(path);
+        let mut settings = store.load().normalized();
+        assert_eq!(settings.ui_scale, 100);
+        assert_eq!(settings.document_scale, 100);
+        settings.ui_scale = 150;
+        settings.document_scale = 125;
+        store.save(&settings).unwrap();
+        let reloaded = store.load().normalized();
+        assert_eq!(reloaded.ui_scale, 150);
+        assert_eq!(reloaded.document_scale, 125);
+        assert_eq!(reloaded.appearance, "dark");
+        assert_eq!(reloaded.extra["future"], json!({"keep":true}));
+    }
+
+    #[test]
+    fn normalizes_scale_to_usable_bounds() {
+        for (input, expected) in [
+            (0, 100),
+            (1, 75),
+            (75, 75),
+            (125, 125),
+            (200, 200),
+            (999, 200),
+        ] {
+            let settings = Settings {
+                ui_scale: input,
+                document_scale: input,
+                ..Settings::default()
+            }
+            .normalized();
+            assert_eq!(settings.ui_scale, expected);
+            assert_eq!(settings.document_scale, expected);
+        }
     }
 }

@@ -2,124 +2,170 @@
 
 **A modern, local-first Markdown viewer and editor for macOS.**
 
-Marquellium is an open-source desktop application designed for reading, writing, editing, and managing Markdown documents. Built with Tauri, Rust, React, and TypeScript, it combines multiple editing modes with document integrity, native desktop integration, and a streamlined writing experience.
+Marquellium is an open-source desktop application for reading, writing, editing, and managing Markdown documents. Built with **Tauri, Rust, React, and TypeScript**, it combines powerful editing capabilities with native desktop integration, flexible document management, and an emphasis on preserving the integrity of your Markdown files.
 
-Developed and published by **dodson labs**.
+With four editing modes, live previews, workspace navigation, and multiple export formats, Marquellium provides a comprehensive Markdown environment without requiring cloud services or proprietary document formats.
+
+**Developed and published by dodson labs.**
+
+---
 
 ## Features
 
 ### Four editing modes
 
-Choose the experience that best fits your workflow:
+Marquellium offers four complementary ways to work with Markdown documents:
 
-- **Read** — View rendered Markdown in a clean, distraction-free interface.
-- **Source** — Edit Markdown directly with full control over its syntax.
-- **Split** — Work with Markdown source and rendered content side by side.
-- **Visual** — Edit formatted content directly using a Typora-style editing experience.
+| Mode | Description |
+|---|---|
+| **Read** | View rendered Markdown in a clean, distraction-free reading environment. |
+| **Source** | Edit raw Markdown with complete control over its syntax and formatting. |
+| **Split** | Edit Markdown source alongside its rendered preview. |
+| **Visual** | Edit formatted content directly using a Typora-style visual editing experience. |
 
-Visual is the default mode for new documents and installations. The preferred opening mode is configurable in application preferences.
+Visual mode is the default for new installations and documents. You can change the preferred opening mode through the application's settings.
+
+All four modes operate on the same underlying Markdown document, preserving consistency when switching between them.
 
 ### Document management
 
 - Multiple document tabs and application windows.
-- Session persistence and document recovery.
-- Unsaved-change detection and safe close handling.
-- Recently opened documents.
-- Workspace folders, file navigation, and document search.
-- External file change handling and conflict protection.
-- Cross-mode undo and redo history.
+- Automatic session persistence and document recovery.
+- Unsaved-change detection and safe application shutdown.
+- Recent document history.
+- Workspace folder navigation and document search.
+- External file modification detection and conflict handling.
+- Shared undo and redo history across editing modes.
+- File-based document storage without proprietary formats.
 
-### Markdown editing
+### Markdown capabilities
 
 - Live Markdown rendering and preview.
 - Mermaid diagram rendering.
-- KaTeX mathematical expressions.
-- Table editing helpers.
+- Mathematical expressions using KaTeX.
+- Visual table editing helpers.
 - YAML frontmatter visibility.
 - Image pasting and local-link validation.
-- Outline navigation and synchronized scrolling.
+- Document outline navigation.
+- Synchronized scrolling between source and preview.
 - Keyboard-driven command palette.
 - Native spell checking.
 
-### Export
+Visual editing is designed to preserve unrelated Markdown source content. Constructs that cannot be safely edited visually remain accessible through Source mode.
 
-Export Markdown documents to:
+### Document export
 
-- **HTML** — Static HTML output.
-- **PDF** — Native print and Save as PDF support.
-- **DOCX** — Microsoft Word-compatible documents.
+Marquellium supports exporting Markdown documents to several widely used formats:
 
-Some advanced formatting or embedded resources may require format-specific fallbacks.
+| Format | Capabilities |
+|---|---|
+| **HTML** | Generate static HTML documents. |
+| **PDF** | Use native printing and Save as PDF functionality. |
+| **DOCX** | Create Microsoft Word-compatible documents. |
 
-### Local-first design
+Export operations use the document's applied Markdown content. Certain advanced formatting, diagrams, or external resources may require format-specific fallbacks.
 
-Marquellium treats your Markdown files as the authoritative source of your documents.
+### Local-first architecture
 
-It is designed around several principles:
+Your documents belong to you.
 
-- Your documents remain ordinary Markdown files.
-- Editing operations prioritize document integrity.
-- Visual editing preserves unrelated source content.
-- Unsupported Markdown constructs remain accessible through source editing.
-- Document storage does not require a cloud service.
+Marquellium follows a filesystem-first design in which ordinary Markdown files remain the authoritative source of document content.
 
-**Engineering principle:** Correctness and document integrity take precedence over editing convenience.
+Core principles include:
+
+- **Local ownership** — Documents are stored as standard Markdown files.
+- **Document integrity** — Editing operations prioritize preserving existing content.
+- **Source fidelity** — Visual edits preserve unrelated source content.
+- **Open formats** — No proprietary document format is required.
+- **Offline operation** — Document editing does not require a cloud service.
+- **Recovery and durability** — Document state and unsaved changes are protected through recovery mechanisms.
+
+**Governing engineering principle: Correctness and document integrity take precedence over editing convenience.**
+
+---
 
 ## Platform support
 
-| Platform | Current status |
+Marquellium is currently developed and validated primarily for **macOS on Apple Silicon**.
+
+| Platform | Status |
 |---|---|
 | macOS (Apple Silicon) | Primary development and validated platform |
 | Linux (Debian arm64) | Portability testing underway |
 | Windows | Build infrastructure prepared; native validation pending |
 
-**macOS is currently the primary supported platform.** Linux and Windows support remain under development and are not yet considered release-ready.
+Linux and Windows support are development objectives, but neither platform is currently considered release-ready.
+
+The application uses a cross-platform architecture; however, **macOS is the current primary supported platform**.
+
+---
 
 ## Project status
 
-<text>**Active development — pre-release**</text>
+> **Status: Active Development — Pre-release**
 
-As of November 2, 2026, the core application, four editing modes, document management, workspace features, and export functionality have been implemented.
+As of November 2, 2026, Marquellium has implemented its core application architecture, all four editing modes, document management, workspace features, preferences, and export functionality.
 
-Functional validation has been performed on macOS arm64. Release acceptance remains open, including signing, notarization, accessibility verification, clean-install testing, and completion of the cross-platform validation matrix.
+Functional validation has been performed on macOS arm64.
 
-Detailed engineering progress and validation evidence are maintained separately:
+The project is progressing toward its first stable release. Remaining acceptance activities include code signing, notarization, clean-install verification, accessibility testing, and completion of the platform validation matrix.
+
+### Development milestones
+
+| Milestone | Description | Status |
+|---|---|---|
+| M0 | Architecture, design decisions, fixtures, and scaffolding | Complete |
+| M1–M3 | Document durability, windows, editing foundations, sessions, and recovery | Implemented |
+| M3V | Visual editing infrastructure, source mapping, and draft recovery | Validated |
+| M4 | Document editing, previews, workspace tools, and command palette | Validated on macOS |
+| M5 | Exports, preferences, native spelling, and performance benchmarks | Implemented; release acceptance pending |
+| M6 | Cross-platform portability and native validation | In progress |
+
+Detailed development and validation records are maintained in the repository:
 
 - [Development checkpoint review](docs/checkpoint-review-2026-11-02.md)
-- [M3V acceptance results](docs/m3v-acceptance.md)
-- [M4 feature results](docs/m4-results.md)
-- [M5 export and preferences results](docs/m5-results.md)
-- [M6 platform validation](docs/m6-results.md)
+- [Visual editing acceptance](docs/m3v-acceptance.md)
+- [M4 implementation results](docs/m4-results.md)
+- [M5 implementation results](docs/m5-results.md)
+- [M6 portability results](docs/m6-results.md)
 - [Release acceptance follow-up](docs/release-follow-up-2026-11-02.md)
 - [Release requirements](docs/release.md)
 
-Features and platform availability may change before the first stable release.
+Feature availability and platform support may change before the first stable release.
+
+---
 
 ## Getting started
 
-### Prerequisites
+### Requirements
 
-For macOS development:
+To build Marquellium on macOS, you will need:
 
-- macOS with Xcode Command Line Tools
-- Node.js 22 or newer
-- pnpm 12, installed through Corepack
-- Stable Rust toolchain
-- Tauri system dependencies
+- macOS with Xcode Command Line Tools.
+- Node.js 24 LTS (the supported major is recorded in `.node-version`).
+- pnpm 12, installed through Corepack.
+- A stable Rust toolchain.
+- The native dependencies required by Tauri.
 
 ### Build and run
 
-```bash
-# Install dependencies
-pnpm install
+Clone the repository and run the following commands from its root directory:
 
-# Launch the desktop application
+```bash
+git clone https://github.com/dodSONSoftware/marquellium.git
+cd marquellium
+
+# Select Node.js 24 with your version manager before installing dependencies.
+# Install dependencies
+pnpm install --frozen-lockfile
+
+# Run the desktop application
 pnpm dev
 
-# Launch the frontend only
+# Run the frontend independently
 pnpm dev:web
 
-# Type-check the frontend
+# Type-check TypeScript
 pnpm typecheck
 
 # Run frontend tests
@@ -129,91 +175,138 @@ pnpm test
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-The frontend-only development server does not provide the full native Tauri functionality.
+The frontend-only development server does not provide the native functionality normally supplied by Tauri.
 
 ### Basic usage
 
-1. Open an existing Markdown document or create a new one.
-2. Select Read, Source, Split, or Visual mode.
-3. Use **Files → Open folder…** to browse a workspace.
-4. Open **Document tools** for image pasting, link validation, and frontmatter options.
+1. Open an existing Markdown document or create a new document.
+2. Choose between Read, Source, Split, and Visual editing modes.
+3. Use **Files → Open folder…** to open a workspace.
+4. Access document tools for image pasting, link validation, and frontmatter visibility.
 5. Open the command palette with **Cmd+Shift+P**.
-6. Export a document using **Cmd+Shift+E**.
-7. Configure appearance, typography, spell checking, and default opening mode through **Preferences…**.
+6. Export documents using **Cmd+Shift+E**.
+7. Use **Preferences…** to configure typography, appearance, spelling, and the default opening mode.
 
-See the [User Guide](docs/user-guide.md) for additional instructions.
+See the [User Guide](docs/user-guide.md) for detailed usage information.
+
+---
 
 ## Technology stack
+
+Marquellium is a desktop application built using a Rust backend and a React/TypeScript frontend.
 
 | Component | Technology |
 |---|---|
 | Desktop framework | Tauri |
 | Native backend | Rust |
-| User interface | React |
+| Frontend framework | React |
 | Frontend language | TypeScript |
 | Build tooling | Vite |
 | Markdown rendering | Markdown rendering pipeline with Mermaid and KaTeX support |
-| Testing | Vitest, Rust tests, native validation |
+| Frontend testing | Vitest |
+| Backend testing | Rust test framework |
+| Continuous integration | GitHub Actions |
 
 ### Repository structure
 
 ```text
-src/
-├── core/         Document engine, transactions, source mapping
-├── app/          Application composition, tabs, windows, commands
-├── components/   User interface components
-├── features/     Editor, preview, workspace, documents, export
-├── services/     Typed Tauri command interface
-└── styles/       Themes and print styling
-
-src-tauri/        Rust backend and native integration
-fixtures/         Markdown, filesystem, export and security test data
-docs/             Product requirements, architecture and validation
-.github/          GitHub Actions workflows
+marquellium/
+├── .github/
+│   └── workflows/       Continuous integration workflows
+│
+├── src/
+│   ├── core/            Document engine and source mapping
+│   ├── app/             Application state and composition
+│   ├── components/      User interface components
+│   ├── features/        Editing, preview, workspace, export
+│   ├── services/        Tauri command integration
+│   └── styles/          Application themes and print styles
+│
+├── src-tauri/           Rust backend and native integration
+├── fixtures/            Test fixtures and validation data
+├── docs/                Architecture and engineering documentation
+├── LICENSE              MIT License
+└── README.md            Project documentation
 ```
+
+---
 
 ## Architecture and engineering
 
-Marquellium follows a filesystem-first architecture.
+Marquellium is designed around a fundamental principle: **the Markdown source is authoritative**.
 
-Canonical Markdown remains authoritative, including during visual editing. The editor uses source-range mapping and localized transactions to avoid unnecessary modifications outside the edited content.
+Visual editing is implemented using localized document transactions and source-range mapping. This approach minimizes changes to unrelated content and helps preserve formatting, whitespace, and unsupported constructs.
 
-Other architectural priorities include:
+Architectural priorities include:
 
-- Document durability and recovery.
-- Least-privilege native filesystem operations.
-- Consistent document state across tabs and windows.
-- Shared editing history across modes.
-- Safe handling of unsupported Markdown constructs.
-- Explicit validation of potentially unsafe content.
+- **Separation of concerns** between the document engine, application state, presentation, and native services.
+- **Document durability** through persistence, recovery, and safe-close handling.
+- **Consistent editing state** across multiple tabs, windows, and editor modes.
+- **Source-preserving transformations** wherever supported.
+- **Least-privilege filesystem access** through controlled native commands.
+- **Security-conscious rendering** and validation of potentially unsafe content.
+- **Automated validation** of document round trips and editing behavior.
 
-For implementation details, see:
+### Engineering documentation
+
+The repository includes detailed documentation describing requirements, architecture, testing, and design decisions:
 
 - [Product Requirements Document](docs/prd.md)
-- [Architecture](docs/architecture.md)
+- [System Architecture](docs/architecture.md)
 - [Threat Model](docs/threat-model.md)
 - [Test Plan](docs/test-plan.md)
 - [Requirements Mapping](docs/requirement-map.md)
 - [Architecture Decision Records](docs/adr/)
+- [Release Validation Matrix](docs/release-matrix.md)
+
+These documents provide the technical foundation for Marquellium's implementation.
 
 ### Testing and continuous integration
 
-GitHub Actions performs automated validation, including TypeScript checks, frontend tests, Rust tests, Clippy, and dependency audits.
+GitHub Actions automates key validation tasks, including:
 
-Native application acceptance testing is tracked independently of automated unit tests.
+- TypeScript type checking.
+- Frontend unit testing.
+- Frontend production builds.
+- Rust unit and integration testing.
+- Clippy static analysis.
+- Dependency security auditing.
 
-See [.github/workflows/ci.yml](.github/workflows/ci.yml) and the [release validation matrix](docs/release-matrix.md).
+See the [CI workflow](.github/workflows/ci.yml) for the configured checks.
 
-## Licensing
+Native desktop acceptance tests and platform-specific validation are tracked separately from automated unit testing.
 
-Marquellium is released under the **MIT License**.
+---
+
+## Contributing
+
+Marquellium is an open-source project, and contributions, suggestions, and issue reports are welcome.
+
+You can participate through the repository's GitHub features:
+
+- [Issues](https://github.com/dodSONSoftware/marquellium/issues) — Report problems or suggest improvements.
+- [Pull Requests](https://github.com/dodSONSoftware/marquellium/pulls) — Propose code or documentation changes.
+
+Before contributing, review the architecture and engineering documentation to understand the project's design principles.
+
+Changes affecting document editing or persistence should preserve Markdown source fidelity and include appropriate automated tests.
+
+---
+
+## License
+
+Marquellium's source code is available under the **MIT License**.
 
 Copyright © 2026 Randy Dodson, publishing under the name dodson labs.
 
-See the [LICENSE](LICENSE) file for the complete terms.
+See the [LICENSE](LICENSE) file for the complete license terms.
+
+---
 
 ## About dodson labs
 
 **dodson labs** is an independent open-source software publishing identity operated by Randy Dodson.
 
-Marquellium is developed and published under the dodson labs name, with copyright ownership retained by Randy Dodson.
+The goal of dodson labs is to develop and publish useful, thoughtfully engineered software with an emphasis on reliability, maintainability, and open development.
+
+Marquellium is developed and published under the **dodson labs** name, with copyright ownership retained by Randy Dodson.

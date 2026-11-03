@@ -1,3 +1,6 @@
+import { AboutDialog } from "../features/about/AboutDialog";
+import { applyDisplayScales } from "../features/settings/ui-scale";
+import { ToolbarMenu } from "../features/layout/ToolbarMenu";
 import logoLight from "../assets/branding/marquellium-logo-light.svg";
 import logoDark from "../assets/branding/marquellium-logo-dark.svg";
 import { ResizeHandle } from "../features/layout/ResizeHandle";
@@ -97,6 +100,8 @@ const DEFAULT_SETTINGS: Settings = {
   appearance: "system",
   defaultMode: "visual",
   spellcheckEnabled: true,
+  uiScale: 100,
+  documentScale: 100,
   sidebar: { visible: true, width: 240, section: "files" },
 };
 
@@ -249,6 +254,7 @@ export function App() {
   // --- UI preferences (FR-031 appearance, FR-047 sidebar) -------------------
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [preferences, setPreferences] = useState<Settings>(DEFAULT_SETTINGS);
   const statistics = useStatistics(activeDoc ? docText(activeDoc) : "");
@@ -403,7 +409,9 @@ export function App() {
       try {
         const raw = localStorage.getItem(UI_LS_KEY);
         if (raw) {
-          const saved = JSON.parse(raw); setPreferences({ ...DEFAULT_SETTINGS, ...saved });
+          const saved = JSON.parse(raw);
+          const loaded = { ...DEFAULT_SETTINGS, ...saved };
+          settingsRef.current = loaded; setPreferences(loaded);
           const p = saved as {
             appearance?: Appearance;
             sidebarVisible?: boolean;
@@ -477,6 +485,9 @@ export function App() {
     style.setProperty("--reader-font-size", `${p.fontSize}px`); style.setProperty("--editor-font-size", `${p.editorFontSize}px`);
     style.setProperty("--reader-line-height", String(p.lineSpacing / 100)); style.setProperty("--reader-max-width", `${p.maxWidth}px`);
   }, [preferences]);
+  useEffect(() => {
+    applyDisplayScales(preferences.uiScale, preferences.documentScale);
+  }, [preferences.uiScale, preferences.documentScale]);
   const savePreferences = async (s: Settings) => {
     if (isTauri()) await native.settings.set(s); else localStorage.setItem(UI_LS_KEY, JSON.stringify(s));
     settingsRef.current = s; setPreferences(s); setAppearance(s.appearance); setDefaultMode(openMode(s.defaultMode)); setShowFrontmatter(s.showFrontmatter !== false);
@@ -521,7 +532,7 @@ export function App() {
         try {
           localStorage.setItem(
             UI_LS_KEY,
-            JSON.stringify({ ...cur, ...patch }),
+            JSON.stringify({ ...settingsRef.current, ...cur, ...patch }),
           );
         } catch {
           /* best effort in dev */
@@ -1115,6 +1126,24 @@ export function App() {
     { id: "sidebar", label: "Toggle sidebar", run: () => toggleSidebar(!sidebarVisible) },
   ];
 
+  const formattingButtons = EDIT_COMMANDS.map((c) => (
+    <button
+      key={c.cmd}
+      className="fmt"
+      title={c.title}
+      disabled={!activeDoc || mode === "read" || lifecycle.blocked}
+      onClick={() => {
+        if (mode === "visual") { window.dispatchEvent(new CustomEvent("visual-command", { detail: c.cmd })); return; }
+        runEditorCommand(editorViewRef.current, c.cmd);
+        // Toolbar clicks steal focus from the CM view; hand it back
+        // so typing continues where the user left off.
+        editorViewRef.current?.focus();
+      }}
+    >
+      {c.label}
+    </button>
+  ));
+
   return (
     <><div spellCheck={preferences.spellcheckEnabled} inert={lifecycle.blocked || importing} className="app" onPasteCapture={(event) => {
       if (mode === "read" || ![...event.clipboardData.items].some((item) => item.type.startsWith("image/"))) return;
@@ -1122,144 +1151,28 @@ export function App() {
     }}>
       {fileOpen.pending && <p role="status">File opening paused: {fileOpen.pending.path ?? fileOpen.pending.error}<button onClick={fileOpen.retry}>Retry opening</button><button onClick={() => void fileOpen.dismiss()}>Dismiss request</button></p>}
       {importing && <p role="status">Importing clipboard image…</p>}
+      {aboutOpen && <AboutDialog theme={effectiveTheme} suspended={lifecycle.blocked} onClose={() => setAboutOpen(false)} onOpenExternal={openExternal} />}
       {preferencesOpen && <Preferences suspended={lifecycle.blocked} settings={{ ...(settingsRef.current ?? DEFAULT_SETTINGS), appearance, showFrontmatter, defaultMode }} onSave={savePreferences} onClose={() => setPreferencesOpen(false)} />}
       {exportOpen && activeId && <ExportDialog suspended={lifecycle.blocked} docId={activeId} title={activeDoc ? docName(activeDoc) : "Document"} snapshot={async () => (await store.captureSourceSnapshot(activeId)).text} onClose={() => setExportOpen(false)} />}
       {paletteOpen && <CommandPalette commands={commands} onClose={() => { setPaletteOpen(false); }} />}
       {linkResults && <section role="dialog" aria-label="Link validation" className="link-results"><h2>Local link validation</h2>{linkResults.map((message, i) => <p key={i}>{message}</p>)}<button onClick={() => setLinkResults(null)}>Close link results</button></section>}
-      <header className="app-brand"><img src={effectiveTheme === "dark" ? logoDark : logoLight} alt="Marquellium" width={224} height={53} draggable={false} /></header>
-      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { docId: tab.docId, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false }; })} activeId={activeId}
-        onSelect={(id) => {
-          if (activeId === id) return;
-          void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
-            if (!allowed) return;
-            captureContext(); setVisualContext(viewContexts.current.get(id) ?? null); setActiveId(id);
-          });
-        }} onClose={(id) => requestClose("close-tab", [id])} onNew={() => void newDocument()} onMove={moveTab} />
-
-      <div className="toolbar">
-        <button disabled={lifecycle.blocked} onClick={() => { captureContext(); setPaletteOpen(true); }} title="Command palette (Cmd+Shift+P)">Commands…</button>
-        <button onClick={() => setPreferencesOpen(true)}>Preferences…</button>
-        <button disabled={!activeId} onClick={() => void openExport().catch((e) => flash(String(e)))}>Export…</button>
-        <details><summary>Document tools</summary><button disabled={!activeId} onClick={() => void insertMarkdown("\n\n" + newTable + "\n\n").catch((e) => flash(String(e)))}>Insert table</button>
-          <button disabled={!activeId} onClick={() => void checkLinks().catch((e) => flash(String(e)))}>Validate links</button>
-          <label>Assets folder <input value={assetFolder} onChange={(e) => setAssetFolder(e.target.value)} /></label>
-          <button disabled={!activeId} onClick={() => void pasteImage().catch((e) => flash(String(e)))}>Paste image</button>
-          <label><input type="checkbox" checked={showFrontmatter} onChange={(e) => { setShowFrontmatter(e.target.checked); const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), showFrontmatter: e.target.checked }; settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); }} />Show frontmatter</label>
-          <label>Default opening mode <select value={defaultMode} onChange={(e) => {
-            setDefaultMode(e.target.value as ViewMode);
-            const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), defaultMode: e.target.value as ViewMode };
-            settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); else localStorage.setItem(UI_LS_KEY, JSON.stringify(next));
-          }}>{MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
-        </details>
-        <button
-          className={
-            "icon-btn" + (sidebarVisible ? " active" : "")
-          }
-          aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
-          title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
-          disabled={!activeDoc}
-          onClick={() => toggleSidebar(!sidebarVisible)}
-        >
-          {/* left-panel glyph */}
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-            <rect
-              x="1.5"
-              y="2.5"
-              width="13"
-              height="11"
-              rx="1.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-            />
-            <line
-              x1="6"
-              y1="2.5"
-              x2="6"
-              y2="13.5"
-              stroke="currentColor"
-              strokeWidth="1.4"
-            />
-          </svg>
-        </button>
-        <button onClick={() => void newDocument()}>New</button>
+      <header className="command-deck toolbar" aria-label="Document commands">
+        <button type="button" className="app-brand" aria-label="About Marquellium" title="About Marquellium" onClick={() => setAboutOpen(true)}><img src={effectiveTheme === "dark" ? logoDark : logoLight} alt="Marquellium" width={190} height={45} draggable={false} /></button>
+        <div className="command-section" role="group" aria-label="Document">
+          <span className="command-label">Document</span>
+          <div className="command-controls">
+        <button onClick={() => void newDocument()}>+ New</button>
         <button onClick={() => void openDocument()}>Open…</button>
-        <details className="recent-menu"><summary>Open Recent</summary><div className="recent-popup">
-          {recents.length ? recents.map((path) => <button key={path} title={path} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); void openRecent(path); }}>{docName({ docId: "", path })}</button>) : <p>No recent documents</p>}
-        </div></details>
-        <button onClick={() => void saveActive()} disabled={!activeDoc}>
+        <button className="primary-action" onClick={() => void saveActive()} disabled={!activeDoc}>
           Save
         </button>
+          <ToolbarMenu label="More document actions">
         <button onClick={() => void saveAs()} disabled={!activeDoc}>
           Save As…
         </button>
-        <span className="toolbar-sep" />
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            className={
-              "mode" +
-              (activeTab?.mode === m.id ? " active" : "") +
-              (m.available ? "" : " disabled")
-            }
-            title={m.available ? m.label : `${m.label} — ${m.note}`}
-            disabled={!m.available}
-            onClick={() => setMode(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
-        {mode === "split" && (
-          <button
-            className={"icon-btn" + (splitSync ? " active" : "")}
-            aria-label={
-              splitSync ? "Disable scroll sync" : "Enable scroll sync"
-            }
-            aria-pressed={splitSync}
-            title={
-              splitSync
-                ? "Scroll sync on — panes scroll together"
-                : "Scroll sync off — panes scroll independently"
-            }
-            onClick={() => setSplitSync((s) => !s)}
-          >
-            ⇅
-          </button>
-        )}
-        <span className="toolbar-sep" />
-        {EDIT_COMMANDS.map((c) => (
-          <button
-            key={c.cmd}
-            className="fmt"
-            title={c.title}
-            disabled={!activeDoc || mode === "read" || lifecycle.blocked}
-            onClick={() => {
-              if (mode === "visual") { window.dispatchEvent(new CustomEvent("visual-command", { detail: c.cmd })); return; }
-              runEditorCommand(editorViewRef.current, c.cmd);
-              // Toolbar clicks steal focus from the CM view; hand it back
-              // so typing continues where the user left off.
-              editorViewRef.current?.focus();
-            }}
-          >
-            {c.label}
-          </button>
-        ))}
-        <span className="toolbar-sep" />
-        <button
-          onClick={() => activeId && undo(activeId)}
-          disabled={!activeId}
-          title="Undo (Cmd+Z)"
-        >
-          ↩
-        </button>
-        <button
-          onClick={() => activeId && redo(activeId)}
-          disabled={!activeId}
-          title="Redo (Shift+Cmd+Z)"
-        >
-          ↪
-        </button>
-        <span className="toolbar-sep" />
+        <details className="recent-menu"><summary>Open Recent</summary><div className="recent-popup">
+          {recents.length ? recents.map((path) => <button key={path} title={path} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); void openRecent(path); }}>{docName({ docId: "", path })}</button>) : <p>No recent documents</p>}
+        </div></details>
         <button
           onClick={() => void openNewWindow().catch(() => {})}
           title="New window"
@@ -1267,7 +1180,21 @@ export function App() {
           + Window
         </button>
         {import.meta.env.VITE_M3V_VISUAL_PROTOTYPE === "1" && <button disabled={!activeId} onClick={() => activeId && void openVisualPrototype(activeId).catch((error) => flash(String(error)))}>M3V prototype</button>}
-        <span className="toolbar-spacer" />
+          </ToolbarMenu>
+          </div>
+        </div>
+        <div className="command-section" role="group" aria-label="Format">
+          <span className="command-label">Format</span>
+          <div className="command-controls">
+            {formattingButtons.slice(0, 5)}
+          <ToolbarMenu label="More formatting"><div className="format-overflow">
+            {formattingButtons.slice(5)}
+          </div></ToolbarMenu>
+          </div>
+        </div>
+        <div className="deck-utilities">
+          <button className="icon-btn settings-button" aria-label="Settings" title="Settings (Cmd+,)" onClick={() => setPreferencesOpen(true)}>⚙</button>
+        <button disabled={lifecycle.blocked} onClick={() => { captureContext(); setPaletteOpen(true); }} title="Command palette (Cmd+Shift+P)">Commands…</button>
         <button
           className="icon-btn"
           aria-label={
@@ -1311,6 +1238,115 @@ export function App() {
             </svg>
           )}
         </button>
+          <ToolbarMenu label="Application tools">
+
+        <button onClick={() => setPreferencesOpen(true)}>Preferences…</button>
+        <button disabled={!activeId} onClick={() => void openExport().catch((e) => flash(String(e)))}>Export…</button>
+        <details><summary>Document tools</summary><button disabled={!activeId} onClick={() => void insertMarkdown("\n\n" + newTable + "\n\n").catch((e) => flash(String(e)))}>Insert table</button>
+          <button disabled={!activeId} onClick={() => void checkLinks().catch((e) => flash(String(e)))}>Validate links</button>
+          <label>Assets folder <input value={assetFolder} onChange={(e) => setAssetFolder(e.target.value)} /></label>
+          <button disabled={!activeId} onClick={() => void pasteImage().catch((e) => flash(String(e)))}>Paste image</button>
+          <label><input type="checkbox" checked={showFrontmatter} onChange={(e) => { setShowFrontmatter(e.target.checked); const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), showFrontmatter: e.target.checked }; settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); }} />Show frontmatter</label>
+          <label>Default opening mode <select value={defaultMode} onChange={(e) => {
+            setDefaultMode(e.target.value as ViewMode);
+            const next = { ...(settingsRef.current ?? DEFAULT_SETTINGS), defaultMode: e.target.value as ViewMode };
+            settingsRef.current = next; if (isTauri()) void native.settings.set(next).catch((error) => flash(String(error))); else localStorage.setItem(UI_LS_KEY, JSON.stringify(next));
+          }}>{MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        </details>
+          </ToolbarMenu>
+        </div>
+      </header>
+      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { docId: tab.docId, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false }; })} activeId={activeId}
+        onSelect={(id) => {
+          if (activeId === id) return;
+          void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
+            if (!allowed) return;
+            captureContext(); setVisualContext(viewContexts.current.get(id) ?? null); setActiveId(id);
+          });
+        }} onClose={(id) => requestClose("close-tab", [id])} onNew={() => void newDocument()} onMove={moveTab} />
+      <div className="view-strip toolbar" role="group" aria-label="Document view">
+        <button
+          className={
+            "icon-btn" + (sidebarVisible ? " active" : "")
+          }
+          aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+          title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+          disabled={!activeDoc}
+          onClick={() => toggleSidebar(!sidebarVisible)}
+        >
+          {/* left-panel glyph */}
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <rect
+              x="1.5"
+              y="2.5"
+              width="13"
+              height="11"
+              rx="1.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+            <line
+              x1="6"
+              y1="2.5"
+              x2="6"
+              y2="13.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+          </svg>
+        </button>
+        <div className="view-modes" role="group" aria-label="View mode">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            aria-pressed={activeTab?.mode === m.id}
+            className={
+              "mode" +
+              (activeTab?.mode === m.id ? " active" : "") +
+              (m.available ? "" : " disabled")
+            }
+            title={m.available ? m.label : `${m.label} — ${m.note}`}
+            disabled={!m.available}
+            onClick={() => setMode(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
+        {mode === "split" && (
+          <button
+            className={"icon-btn" + (splitSync ? " active" : "")}
+            aria-label={
+              splitSync ? "Disable scroll sync" : "Enable scroll sync"
+            }
+            aria-pressed={splitSync}
+            title={
+              splitSync
+                ? "Scroll sync on — panes scroll together"
+                : "Scroll sync off — panes scroll independently"
+            }
+            onClick={() => setSplitSync((s) => !s)}
+          >
+            ⇅
+          </button>
+        )}
+        </div><span className="toolbar-spacer" />
+        <div className="history-controls" role="group" aria-label="Document history">
+        <button
+          onClick={() => activeId && undo(activeId)}
+          disabled={!activeId}
+          title="Undo (Cmd+Z)"
+        >
+          ↩
+        </button>
+        <button
+          onClick={() => activeId && redo(activeId)}
+          disabled={!activeId}
+          title="Redo (Shift+Cmd+Z)"
+        >
+          ↪
+        </button>
+        </div>
       </div>
 
       <div className="content">

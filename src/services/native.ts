@@ -77,6 +77,8 @@ export interface Settings {
   defaultMode: "read" | "source" | "split" | "visual";
   spellcheckEnabled: boolean;
   showFrontmatter?: boolean;
+  uiScale?: number;
+  documentScale?: number;
   readerFont?: string; editorFont?: string; fontSize?: number; editorFontSize?: number; lineSpacing?: number; maxWidth?: number;
   sidebar: { visible: boolean; width: number; section: "files" | "toc" };
 }

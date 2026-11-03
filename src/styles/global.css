@@ -529,7 +529,7 @@ body {
 .link-results { position: fixed; inset: 15% 20%; z-index: 150; overflow: auto; background: var(--bg, #222); padding: 1rem; border: 1px solid var(--border); }
 .toolbar details[open] { max-width: 32rem; }
 
-.settings-dialog { color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:10px; width:min(38rem,90vw); max-height:85vh; overflow:auto; }
+.settings-dialog { color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:10px; width:min(38rem,calc(90vw / var(--ui-scale, 1))); max-height:calc(85vh / var(--ui-scale, 1)); overflow:auto; }
 .settings-dialog::backdrop { background:#0009; }
 .settings-dialog label { display:block; margin:.7em 0; }
 .settings-dialog input:not([type=checkbox]),.settings-dialog select { max-width:100%; }
@@ -548,6 +548,101 @@ body {
 .document-tabs { display: flex; align-items: stretch; }
 .tab-select { display: flex; align-items: center; gap: .5rem; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; }
 
-/* The supplied lockup stays above the tabs and follows the resolved appearance. */
-.app-brand { flex: 0 0 auto; padding: 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-.app-brand img { display: block; width: 224px; height: auto; max-width: 100%; }
+/* Command deck: compact groups above the document tabs. */
+:root {
+  --chrome-bg: #f2f5fa; --chrome-raised: #e6ecf5; --chrome-line: #c5d0e0;
+  --chrome-text: #24334b; --chrome-muted: #596d88; --chrome-accent: #3478d4;
+}
+:root[data-theme="dark"] {
+  --chrome-bg: #161f2d; --chrome-raised: #202e42; --chrome-line: #34465e;
+  --chrome-text: #e1e8f5; --chrome-muted: #9badc4; --chrome-accent: #3e83e5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --chrome-bg: #161f2d; --chrome-raised: #202e42; --chrome-line: #34465e;
+    --chrome-text: #e1e8f5; --chrome-muted: #9badc4; --chrome-accent: #3e83e5;
+  }
+}
+.command-deck.toolbar {
+  gap: 16px; padding: 16px 20px; background: var(--chrome-bg);
+  border-color: var(--chrome-line); color: var(--chrome-text); align-items: center;
+}
+.app-brand { flex: 0 0 190px; }
+.app-brand img { display: block; width: 190px; height: auto; max-width: 100%; }
+.command-section { border-left: 1px solid var(--chrome-line); padding-left: 12px; }
+.command-label { display: block; margin-bottom: 6px; color: var(--chrome-muted); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.command-controls, .deck-utilities, .view-modes, .history-controls { display: flex; align-items: center; gap: 4px; }
+.deck-utilities { margin-left: auto; align-self: flex-end; }
+.command-deck button, .command-deck .toolbar-menu > summary, .view-strip button {
+  min-height: 34px; border: 1px solid var(--chrome-line); border-radius: 7px;
+  background: var(--chrome-raised); color: var(--chrome-text); font-size: 13px; font-weight: 600;
+  padding: 6px 10px; white-space: nowrap;
+}
+/* Text, icon glyphs and summaries share one control box and baseline. */
+.command-controls > button, .command-controls > .toolbar-menu > summary,
+.deck-utilities > button, .deck-utilities > .toolbar-menu > summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 34px; line-height: 1;
+}
+.command-deck .primary-action { background: var(--chrome-accent); border-color: var(--chrome-accent); color: white; }
+.command-deck .fmt { min-width: 35px; font-size: 14px; }
+.command-deck .icon-btn { width: 34px; min-height: 34px; padding: 7px; }
+.command-deck button:hover:not(:disabled), .toolbar-menu > summary:hover { border-color: var(--chrome-accent); }
+.toolbar-menu { position: relative; }
+.toolbar-menu > summary { list-style: none; cursor: pointer; text-align: center; }
+.toolbar-menu > summary::-webkit-details-marker { display: none; }
+.toolbar-menu-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; gap: 6px; width: max-content;
+  min-width: 210px; max-width: min(360px, calc(100vw - 32px)); max-height: 60vh; overflow: auto;
+  padding: 10px; background: var(--chrome-bg); color: var(--chrome-text);
+  border: 1px solid var(--chrome-line); border-radius: 9px; box-shadow: 0 10px 30px #0004;
+}
+.toolbar-menu.align-start > .toolbar-menu-panel { left: 0; right: auto; }
+.toolbar-menu-panel > button { text-align: left; }
+.toolbar-menu-panel label { display: block; margin: 8px 0; font-size: 12px; }
+.toolbar-menu-panel input:not([type=checkbox]), .toolbar-menu-panel select { width: 100%; margin-top: 5px; padding: 5px; border: 1px solid var(--chrome-line); border-radius: 4px; background: var(--chrome-raised); color: var(--chrome-text); }
+.toolbar-menu-panel details > summary { cursor: pointer; padding: 6px; font-size: 13px; }
+.toolbar-menu-panel .recent-popup { position: static; min-width: 0; max-width: 300px; padding: 0; border: 0; background: transparent; }
+.toolbar-menu-panel .recent-popup button { overflow: hidden; text-overflow: ellipsis; }
+.format-overflow { display: flex; flex-wrap: wrap; gap: 5px; max-width: 220px; }
+.tabbar { background: var(--chrome-raised); border-color: var(--chrome-line); padding-left: 16px; }
+.tab { min-height: 46px; border-right: 1px solid var(--chrome-line); border-top: 2px solid transparent; color: var(--chrome-muted); padding: 10px 16px; }
+.tab.active { border-top-color: var(--chrome-accent); background: var(--chrome-bg); color: var(--chrome-text); }
+.tab .dot { background: #f4b654; }
+.tab-select { flex: 1; }
+.tab-close, .tab-new { color: var(--chrome-muted); }
+.view-strip.toolbar { padding: 6px 20px; gap: 10px; background: var(--chrome-raised); border-color: var(--chrome-line); }
+.view-strip button { min-height: 28px; padding: 4px 9px; font-size: 12px; background: transparent; border-color: transparent; color: var(--chrome-muted); }
+.view-strip button.mode.active, .view-strip .icon-btn.active { background: var(--chrome-bg); border-color: var(--chrome-line); color: var(--chrome-text); }
+@media (max-width: 900px) {
+  .command-deck.toolbar { gap: 12px; padding: 12px; }
+  .command-section[aria-label="Format"] { order: 4; width: 100%; padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--chrome-line); display: flex; align-items: center; gap: 12px; }
+  .command-section[aria-label="Format"] .command-label { margin: 0; }
+  .deck-utilities { margin-left: auto; }
+  .view-strip.toolbar { padding-inline: 12px; }
+}
+
+.interface-settings { margin: 0 0 1rem; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; }
+.interface-settings legend { font-weight: 600; padding: 0 6px; }
+.interface-settings output { float: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.interface-settings input[type=range] { width: 100%; accent-color: var(--accent); }
+.interface-settings p { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.scale-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .8rem; color: var(--muted); }
+.command-deck .settings-button { font-size: 19px; }
+
+/* Interface zoom is limited to chrome; document surfaces have their own zoom. */
+.command-deck, .tabbar, .view-strip, .statusbar, .sidebar, .settings-dialog,
+.modal-backdrop > .modal, .link-results, .toast, .empty { zoom: var(--ui-scale, 1); }
+.pane-source > .editor-host, .pane-reader > .reader, .panes > .visual-surface { zoom: var(--document-scale, 1); }
+/* Controls embedded in a document retain the interface scale, including drafts/search. */
+.visual-insert, .visual-surface > nav, .visual-surface > [role=alert],
+.visual-surface > [role=status], .visual-block > button, .table-tools, .protected-label,
+.inline-source-draft > :not([aria-label="Draft Markdown"]), .editor-host .cm-panels {
+  zoom: calc(var(--ui-scale, 1) / var(--document-scale, 1));
+}
+.toolbar-menu-panel { max-height: calc(60vh / var(--ui-scale, 1)); }
+.modal-backdrop > .modal { max-height: calc(75vh / var(--ui-scale, 1)); max-width: calc(90vw / var(--ui-scale, 1)); }
+.link-results { max-width: calc(90vw / var(--ui-scale, 1)); max-height: calc(80vh / var(--ui-scale, 1)); }
+
+.toolbar-menu-panel { max-width: min(360px, calc((100vw - 32px) / var(--ui-scale, 1))); }

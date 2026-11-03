@@ -18,14 +18,14 @@ jobs:
             bundles: app
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          version: 12.16.1
-      - uses: actions/setup-node@v4
+          node-version-file: .node-version
+      - uses: pnpm/setup@v1
         with:
-          node-version: 22
-          cache: pnpm
+          cache: true
+          install: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -47,7 +47,7 @@ jobs:
           cargo install tauri-driver --version 2.1.0 --locked
           sudo dpkg -i src-tauri/target/release/bundle/deb/*.deb
           dbus-run-session -- xvfb-run -a python3 scripts/acceptance/m6-webdriver.py /usr/bin/markdown-viewer --output /tmp/m6-native
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: m6-${{ runner.os }}-${{ runner.arch }}-candidate
           path: |

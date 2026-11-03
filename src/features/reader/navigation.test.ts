@@ -60,3 +60,13 @@ it("syncing Source to frontmatter before the first rendered anchor returns Reade
   const root = document.createElement("div"); root.innerHTML = '<h1 data-source-start="50">Heading</h1>'; root.scrollTop = 500;
   scrollReaderOffset(root, 0, 100); expect(root.scrollTop).toBe(0);
 });
+
+it("converts zoomed document coordinates to logical scroll offsets", async () => {
+  const { scrollReaderOffset } = await import("./navigation");
+  const root = document.createElement("div"); root.innerHTML = '<p data-source-start="0"></p><p data-source-start="40"></p>';
+  root.scrollTop = 20;
+  Object.defineProperty(root, "offsetHeight", { value: 200 });
+  vi.spyOn(root, "getBoundingClientRect").mockReturnValue({ top: 100, height: 300 } as DOMRect);
+  vi.spyOn(root.children[1]!, "getBoundingClientRect").mockReturnValue({ top: 400 } as DOMRect);
+  scrollReaderOffset(root, 65, 100); expect(root.scrollTop).toBe(220);
+});

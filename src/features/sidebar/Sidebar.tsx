@@ -43,13 +43,14 @@ export function Sidebar({ outline, tocActive, activeSlug, width, onToggle, onRes
     e.preventDefault();
     const startX = e.clientX;
     const startW = width;
+    const scale = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1;
     const move = (ev: PointerEvent) =>
-      setDragWidth(clampWidth(startW + ev.clientX - startX));
+      setDragWidth(clampWidth(startW + (ev.clientX - startX) / scale));
     const up = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       setDragWidth(null);
-      onResize(clampWidth(startW + ev.clientX - startX));
+      onResize(clampWidth(startW + (ev.clientX - startX) / scale));
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);

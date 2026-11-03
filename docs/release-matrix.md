@@ -11,7 +11,7 @@ M0 (2026-10-29). Versions are **pinned** in `package.json` (exact) and resolved 
 | Windows 10/11 (x64) | M6 target | WebView2 (evergreen, auto-installed) | Print/PDF parity must be validated (ADR-009); installer = MSIX/NSIS |
 | Linux (glibc, x64/arm64) | M6 target | WebKitGTK (system) | Distribution via .deb/.rpm/AppImage; no self-contained webview (system dependency, documented) |
 
-Developer requirements: Node ≥ 22, pnpm 12 (corepack), Rust stable (1.99 at M0), Xcode CLT on macOS. **End users need none of these** (PRD §1B.1).
+Developer requirements: Node 24 LTS (`.node-version`), pnpm 12 (corepack), Rust stable (1.99 at M0), Xcode CLT on macOS. **End users need none of these** (PRD §1B.1).
 
 ## Pinned dependency inventory (license audit)
 

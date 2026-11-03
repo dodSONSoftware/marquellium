@@ -31,7 +31,7 @@ export function InlineSourceEditor({ session, onClosed }: { session: DraftSessio
   };
   if (session.closed) return null;
   return (
-    <section aria-label="Inline source draft">
+    <section className="inline-source-draft" aria-label="Inline source draft">
       <div ref={host} inert={session.busy} aria-label="Draft Markdown" />
       {session.isStale && <p role="alert">Document changed. Copy this draft and reopen, or Cancel.</p>}
       {session.error && <div role="alert">
