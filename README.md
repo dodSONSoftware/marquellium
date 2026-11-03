@@ -1,66 +1,219 @@
 # Marquellium
 
-A local-first, cross-platform **Markdown viewer and editor** — Read, Source, Split, and Typora-style Visual modes — built to the [PRD v2.0](docs/prd.md) in this repository.
+**A modern, local-first Markdown viewer and editor for macOS.**
 
-**Governing engineering principle: correctness and document integrity before editing convenience.** Canonical Markdown is authoritative; visual edits preserve unrelated source byte-for-byte.
+Marquellium is an open-source desktop application designed for reading, writing, editing, and managing Markdown documents. Built with Tauri, Rust, React, and TypeScript, it combines multiple editing modes with document integrity, native desktop integration, and a streamlined writing experience.
 
-## Status
+Developed and published by **dodson labs**.
 
-Current checkpoint (November 2, 2026): M0–M3 foundations, M3V acceptance, and **M4 editing/document features** are implemented and validated on macOS arm64. The reviewed checkpoint includes the M3V follow-ups, M4/M5 functional delivery and M6 portability work; see the [checkpoint review](docs/checkpoint-review-2026-11-02.md). M5 functional delivery is implemented; release acceptance remains open. M6 portability delivery is underway: macOS and Debian arm64 file-open/native smoke checks pass; Windows and the full platform acceptance matrix remain open. See [M6 results](docs/m6-results.md). The [release acceptance follow up](docs/release-follow-up-2026-11-02.md) records keyboard accessibility fixes, rebuilt candidates, 22 installed Debian checks and 16 AppImage checks, including native Quit/Cancel and Linux offline acceptance.
+## Features
 
-- **M0:** architecture, ADRs, fixtures and scaffold established.
-- **M1–M3:** document durability, multi-window registry, Reader, Source/Split, shared history, sessions and recents implemented.
-- **M3V:** source maps, localized Visual edits, isolated drafts, real previews, coordinated lifecycle and persistent draft recovery implemented. See [package D evidence](docs/m3v-package-d-results.md) and [package E/current validation](docs/m3v-package-e-results.md).
-- **M4:** supported Visual editing, table helpers, real Mermaid/KaTeX previews and drafts, frontmatter visibility, mapped scroll sync, workspace tree/exclusions/search, local-link validation, image paste and command palette implemented. See [M4 results and acceptance](docs/m4-results.md).
-- **M5:** HTML/PDF/DOCX exports, preferences, native spelling and recorded benchmarks are implemented. Signing/notarization, clean-install acceptance, full accessibility and conclusive offline testing remain. See [M5 results](docs/m5-results.md).
-- **M6:** Debian arm64 packages and native tests are available; Windows build/installer jobs are prepared. Native Windows execution, other Linux desktop environments, and cross-platform print/export acceptance remain.
+### Four editing modes
 
-All four modes are available in normal builds. **Visual is the default for fresh documents/settings**; existing explicit opening preferences and per-document session modes are preserved. Choose another default under **Document tools → Default opening mode**. The development-only pinned M3V harness remains available with `VITE_M3V_VISUAL_PROTOTYPE=1`; this flag is not needed for normal Visual editing.
+Choose the experience that best fits your workflow:
 
-Use **Files → Open folder…** for a scoped workspace and saved-file search, **Document tools** for image paste/link checks/frontmatter display, and **Commands…** or **Cmd/Ctrl+Shift+P** for the keyboard-driven palette. Table controls include row/column helpers and explicit source drafts. Unknown constructs remain visibly protected and source-editable. Recent documents are available from **Open Recent** while tabs are open as well as from the empty screen.
+- **Read** — View rendered Markdown in a clean, distraction-free interface.
+- **Source** — Edit Markdown directly with full control over its syntax.
+- **Split** — Work with Markdown source and rendered content side by side.
+- **Visual** — Edit formatted content directly using a Typora-style editing experience.
 
-The application is named **Marquellium**. The existing `com.markdownviewer.desktop` identifier, app-data directory, preference keys, and internal Rust executable/crate names are retained for compatibility with existing sessions and recovery records. Packaged macOS builds are named `Marquellium.app`.
+Visual is the default mode for new documents and installations. The preferred opening mode is configurable in application preferences.
 
-The [current M3V acceptance index](docs/m3v-acceptance.md) maps G1–G7 and all eight PRD scenarios to tests and native observations. Validation logs are retained in `docs/validation/2026-11-02/`. Actual Dock Quit and no-focused-window resolution passed using the user-authorized AppleScript fallback. Final evidence uses the `m3v-final-` log prefix; native validation found and fixed the AppKit termination bypass and hidden minimized prompts.
+### Document management
 
-## Repository layout
+- Multiple document tabs and application windows.
+- Session persistence and document recovery.
+- Unsaved-change detection and safe close handling.
+- Recently opened documents.
+- Workspace folders, file navigation, and document search.
+- External file change handling and conflict protection.
+- Cross-mode undo and redo history.
 
-```
-src/            React + TypeScript frontend
-  core/         framework-independent document engine (positions, transactions,
-                source-range mapping, serializers, draft sessions) — the M3V surface
-  app/          composition, tabs/windows, commands
-  components/   shell presentation
-  features/     documents · editor · preview · visual · outline · workspace · export
-  services/     typed Tauri command facade
-  styles/       themes, print styles
-src-tauri/      Rust core: document registry, durability, workspace, assets,
-                export, settings (least-privilege commands, no fs plugin)
-fixtures/       binding test corpus: markdown (incl. roundtrip/edit-preserving),
-                hostile-input (security), filesystem (workspaces), export
-docs/           prd.md · architecture.md · threat-model.md · test-plan.md ·
-                requirement-map.md · release-matrix.md · adr/
-```
+### Markdown editing
 
-## Development
+- Live Markdown rendering and preview.
+- Mermaid diagram rendering.
+- KaTeX mathematical expressions.
+- Table editing helpers.
+- YAML frontmatter visibility.
+- Image pasting and local-link validation.
+- Outline navigation and synchronized scrolling.
+- Keyboard-driven command palette.
+- Native spell checking.
 
-Prereqs: Node ≥ 22, pnpm 12 (via corepack), Rust stable, Xcode CLT (macOS).
+### Export
 
-```sh
+Export Markdown documents to:
+
+- **HTML** — Static HTML output.
+- **PDF** — Native print and Save as PDF support.
+- **DOCX** — Microsoft Word-compatible documents.
+
+Some advanced formatting or embedded resources may require format-specific fallbacks.
+
+### Local-first design
+
+Marquellium treats your Markdown files as the authoritative source of your documents.
+
+It is designed around several principles:
+
+- Your documents remain ordinary Markdown files.
+- Editing operations prioritize document integrity.
+- Visual editing preserves unrelated source content.
+- Unsupported Markdown constructs remain accessible through source editing.
+- Document storage does not require a cloud service.
+
+**Engineering principle:** Correctness and document integrity take precedence over editing convenience.
+
+## Platform support
+
+| Platform | Current status |
+|---|---|
+| macOS (Apple Silicon) | Primary development and validated platform |
+| Linux (Debian arm64) | Portability testing underway |
+| Windows | Build infrastructure prepared; native validation pending |
+
+**macOS is currently the primary supported platform.** Linux and Windows support remain under development and are not yet considered release-ready.
+
+## Project status
+
+<text>**Active development — pre-release**</text>
+
+As of November 2, 2026, the core application, four editing modes, document management, workspace features, and export functionality have been implemented.
+
+Functional validation has been performed on macOS arm64. Release acceptance remains open, including signing, notarization, accessibility verification, clean-install testing, and completion of the cross-platform validation matrix.
+
+Detailed engineering progress and validation evidence are maintained separately:
+
+- [Development checkpoint review](docs/checkpoint-review-2026-11-02.md)
+- [M3V acceptance results](docs/m3v-acceptance.md)
+- [M4 feature results](docs/m4-results.md)
+- [M5 export and preferences results](docs/m5-results.md)
+- [M6 platform validation](docs/m6-results.md)
+- [Release acceptance follow-up](docs/release-follow-up-2026-11-02.md)
+- [Release requirements](docs/release.md)
+
+Features and platform availability may change before the first stable release.
+
+## Getting started
+
+### Prerequisites
+
+For macOS development:
+
+- macOS with Xcode Command Line Tools
+- Node.js 22 or newer
+- pnpm 12, installed through Corepack
+- Stable Rust toolchain
+- Tauri system dependencies
+
+### Build and run
+
+```bash
+# Install dependencies
 pnpm install
-pnpm dev                 # Tauri dev (webview + Rust)
-pnpm dev:web             # frontend only (Vite, no Rust)
-pnpm typecheck           # tsc --noEmit
-pnpm test                # vitest (core engine, fixtures, state machines)
-cargo test --manifest-path src-tauri/Cargo.toml   # Rust integration tests
+
+# Launch the desktop application
+pnpm dev
+
+# Launch the frontend only
+pnpm dev:web
+
+# Type-check the frontend
+pnpm typecheck
+
+# Run frontend tests
+pnpm test
+
+# Run Rust tests
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-CI: `.github/workflows/ci.yml` (typecheck, unit, Rust tests, clippy, dependency audits).
+The frontend-only development server does not provide the full native Tauri functionality.
 
-## Key decisions
+### Basic usage
 
-See [docs/adr/](docs/adr/): stack (001), editing engines incl. the visual-mode architecture (002), rendering pipeline (003), filesystem-as-truth (004), least-privilege capabilities (005), multi-window document registry (006), cross-mode undo (007), inline-draft & close state machine (008), export feasibility (009), coordinate/encoding boundary (010).
+1. Open an existing Markdown document or create a new one.
+2. Select Read, Source, Split, or Visual mode.
+3. Use **Files → Open folder…** to browse a workspace.
+4. Open **Document tools** for image pasting, link validation, and frontmatter options.
+5. Open the command palette with **Cmd+Shift+P**.
+6. Export a document using **Cmd+Shift+E**.
+7. Configure appearance, typography, spell checking, and default opening mode through **Preferences…**.
 
-### M5 delivery
+See the [User Guide](docs/user-guide.md) for additional instructions.
 
-Use **Preferences… / Cmd+,** for typography, appearance, native spelling and reset; **Export… / Cmd+Shift+E** for static HTML, native Print/Save PDF and DOCX. Exports preserve applied source and show format/resource fallbacks. See the [user guide](docs/user-guide.md), [M5 results](docs/m5-results.md) and [release gates](docs/release.md). The M5 release gate is not a signed/notarized release claim: Developer ID credentials, clean-machine acceptance and remaining acceptance checks are explicit in the report.
+## Technology stack
+
+| Component | Technology |
+|---|---|
+| Desktop framework | Tauri |
+| Native backend | Rust |
+| User interface | React |
+| Frontend language | TypeScript |
+| Build tooling | Vite |
+| Markdown rendering | Markdown rendering pipeline with Mermaid and KaTeX support |
+| Testing | Vitest, Rust tests, native validation |
+
+### Repository structure
+
+```text
+src/
+├── core/         Document engine, transactions, source mapping
+├── app/          Application composition, tabs, windows, commands
+├── components/   User interface components
+├── features/     Editor, preview, workspace, documents, export
+├── services/     Typed Tauri command interface
+└── styles/       Themes and print styling
+
+src-tauri/        Rust backend and native integration
+fixtures/         Markdown, filesystem, export and security test data
+docs/             Product requirements, architecture and validation
+.github/          GitHub Actions workflows
+```
+
+## Architecture and engineering
+
+Marquellium follows a filesystem-first architecture.
+
+Canonical Markdown remains authoritative, including during visual editing. The editor uses source-range mapping and localized transactions to avoid unnecessary modifications outside the edited content.
+
+Other architectural priorities include:
+
+- Document durability and recovery.
+- Least-privilege native filesystem operations.
+- Consistent document state across tabs and windows.
+- Shared editing history across modes.
+- Safe handling of unsupported Markdown constructs.
+- Explicit validation of potentially unsafe content.
+
+For implementation details, see:
+
+- [Product Requirements Document](docs/prd.md)
+- [Architecture](docs/architecture.md)
+- [Threat Model](docs/threat-model.md)
+- [Test Plan](docs/test-plan.md)
+- [Requirements Mapping](docs/requirement-map.md)
+- [Architecture Decision Records](docs/adr/)
+
+### Testing and continuous integration
+
+GitHub Actions performs automated validation, including TypeScript checks, frontend tests, Rust tests, Clippy, and dependency audits.
+
+Native application acceptance testing is tracked independently of automated unit tests.
+
+See [.github/workflows/ci.yml](.github/workflows/ci.yml) and the [release validation matrix](docs/release-matrix.md).
+
+## Licensing
+
+Marquellium is released under the **MIT License**.
+
+Copyright © 2026 Randy Dodson, publishing under the name dodson labs.
+
+See the [LICENSE](LICENSE) file for the complete terms.
+
+## About dodson labs
+
+**dodson labs** is an independent open-source software publishing identity operated by Randy Dodson.
+
+Marquellium is developed and published under the dodson labs name, with copyright ownership retained by Randy Dodson.
