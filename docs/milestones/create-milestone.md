@@ -32,7 +32,7 @@ Distinguish three independent identifiers:
 
 - **Continuity checkpoint:** `MDV-001`, `MDV-002`, and so on.
 - **Development milestone:** `M0`–`M6` (with the mandatory `M3V` gate) from PRD §11.
-- **Software version:** the version reported by `package.json` / `src-tauri/Cargo.toml`, currently v0.1.0.
+- **Software version:** the version reported by `package.json` / `src-tauri/Cargo.toml`, currently v1.0.0.
 
 Creating `MDV-005` does not mean milestone M5 is implemented or accepted, and a checkpoint does not change the package version.
 

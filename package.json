@@ -2,7 +2,7 @@
   "name": "markdown-viewer",
   "productName": "Marquellium",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "engines": {
     "node": ">=24.0.0 <25"
@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "package:macos": "APPLE_SIGNING_IDENTITY=${APPLE_SIGNING_IDENTITY:--} VITE_M3V_VISUAL_PROTOTYPE=0 tauri build --bundles app,dmg",
     "tauri": "tauri",
     "dev:web": "vite",
     "build:web": "tsc --noEmit && vite build",

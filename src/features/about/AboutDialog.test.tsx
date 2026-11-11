@@ -18,10 +18,14 @@ it("shows current application details, the bundled license and the verified repo
     expect(host.querySelector(".about-identity img")?.getAttribute("src")).toContain("marquellium-logo-light.svg");
     expect(dialog.querySelector("h2")).toBeNull();
     expect(dialog.getAttribute("aria-label")).toBe("About Marquellium"); expect(dialog.open).toBe(true);
-    expect(dialog.textContent).toContain(`version ${version}`); expect(dialog.textContent).toContain("Randy Dodson"); expect(dialog.textContent).toContain("dodson labs");
+    expect(dialog.textContent).toContain(`version ${version}`); expect(dialog.textContent).toContain("Randel Dodson"); expect([...dialog.querySelectorAll("dt")].map((term) => term.textContent)).toEqual(["Developer", "Copyright", "License"]);
     const button = (text: string) => [...host.querySelectorAll("button")].find((b) => b.textContent === text)!;
     expect(host.querySelector("pre")).toBeNull();
     await act(async () => button("View license…").click()); expect(host.querySelector("pre")!.textContent).toBe(license);
+    expect(host.querySelector("pre")!.textContent).toContain("Copyright (c) 2026 Randel Dodson\n");
+    expect(host.querySelector("pre")!.textContent).not.toContain("publishing under the name");
+    expect(dialog.querySelector(".about-layout")!.nextElementSibling).toBe(dialog.querySelector(".modal-actions"));
+    expect(dialog.querySelector(".modal-actions")!.nextElementSibling).toBe(dialog.querySelector("#marquellium-license"));
     expect(button("Hide license").getAttribute("aria-expanded")).toBe("true");
     await act(async () => button("Hide license").click()); expect(host.querySelector("pre")).toBeNull();
     await act(async () => button("GitHub repository…").click()); expect(external).toHaveBeenCalledExactlyOnceWith("https://github.com/dodSONSoftware/marquellium");

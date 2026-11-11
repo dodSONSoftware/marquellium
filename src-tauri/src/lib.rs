@@ -1414,6 +1414,11 @@ pub fn run() {
         .build(context)
         .expect("error while building tauri application")
         .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Ready) {
+                if let Err(error) = file_open::ready(app) {
+                    eprintln!("File-open ready: {error}");
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { ref urls } = event {
                 let paths = urls

@@ -18,6 +18,7 @@ pub struct Request {
 }
 #[derive(Default)]
 struct Queue {
+    ready: bool,
     next: u64,
     requests: VecDeque<Request>,
 }
@@ -30,6 +31,13 @@ impl FileOpenQueue {
         target: &str,
     ) -> Result<(), String> {
         let mut queue = self.0.lock().map_err(|_| "file-open queue lock")?;
+        Self::enqueue_locked(&mut queue, values, target)
+    }
+    fn enqueue_locked(
+        queue: &mut Queue,
+        values: impl IntoIterator<Item = PathBuf>,
+        target: &str,
+    ) -> Result<(), String> {
         for value in values.into_iter().take(65) {
             if queue.requests.len() >= 64 {
                 return Err(
@@ -56,6 +64,20 @@ impl FileOpenQueue {
                 target: target.into(),
             });
         }
+        Ok(())
+    }
+    fn defer_until_ready(&self, paths: &[PathBuf]) -> Result<bool, String> {
+        let mut queue = self.0.lock().map_err(|_| "file-open queue lock")?;
+        if queue.ready {
+            return Ok(false);
+        }
+        // macOS may send Opened before Tauri builds the configured main window.
+        // Keep its requests for main rather than creating a competing window.
+        Self::enqueue_locked(&mut queue, paths.iter().cloned(), "main")?;
+        Ok(true)
+    }
+    fn mark_ready(&self) -> Result<(), String> {
+        self.0.lock().map_err(|_| "file-open queue lock")?.ready = true;
         Ok(())
     }
     fn next(&self, window: &str) -> Option<Request> {
@@ -210,6 +232,9 @@ fn target(app: &tauri::AppHandle) -> Result<String, String> {
     Ok(label)
 }
 pub fn deliver(app: &tauri::AppHandle, paths: Vec<PathBuf>) -> Result<(), String> {
+    if app.state::<FileOpenQueue>().defer_until_ready(&paths)? {
+        return Ok(());
+    }
     let label = target(app)?;
     app.state::<FileOpenQueue>().enqueue(paths, &label)?;
     if let Some(window) = app.get_webview_window(&label) {
@@ -221,6 +246,12 @@ pub fn deliver(app: &tauri::AppHandle, paths: Vec<PathBuf>) -> Result<(), String
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+pub fn ready(app: &tauri::AppHandle) -> Result<(), String> {
+    app.state::<FileOpenQueue>().mark_ready()?;
+    // The frontend also drains on startup, covering a listener that is not ready yet.
+    app.emit_to(tauri::EventTarget::window("main"), "file-open-pending", ())
+        .map_err(|e| e.to_string())
 }
 pub fn window_destroyed(app: &tauri::AppHandle, old: &str) {
     let mut labels: Vec<_> = app
@@ -267,6 +298,31 @@ pub fn file_open_ack(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn finder_open_before_ready_waits_for_main_and_deduplicates_startup_arguments() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("finder.md");
+        std::fs::write(&path, "original").unwrap();
+        let q = FileOpenQueue::default();
+        q.enqueue([path.clone()], "main").unwrap();
+        assert!(q.defer_until_ready(std::slice::from_ref(&path)).unwrap());
+        assert_eq!(q.0.lock().unwrap().requests.len(), 1);
+        assert!(q.next("window-extra").is_none());
+        q.mark_ready().unwrap();
+        assert!(!q.defer_until_ready(&[path]).unwrap());
+        assert!(q.next("main").is_some());
+    }
+    #[test]
+    fn finder_only_cold_start_is_queued_without_creating_another_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("finder.md");
+        std::fs::write(&path, "original").unwrap();
+        let q = FileOpenQueue::default();
+        assert!(q.defer_until_ready(&[path]).unwrap());
+        assert!(q.next("main").unwrap().path.is_some());
+        q.mark_ready().unwrap();
+        assert!(!q.defer_until_ready(&[]).unwrap());
+    }
     #[cfg(target_os = "linux")]
     #[test]
     fn proc_parent_requires_an_explicit_positive_pid() {

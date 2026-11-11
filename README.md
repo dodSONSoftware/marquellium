@@ -1,14 +1,30 @@
 # Marquellium
 
+**Release:** Iron Mongoose — version 1.0.0.
+
 **A modern, local-first Markdown viewer and editor for macOS.**
 
 Marquellium is an open-source desktop application for reading, writing, editing, and managing Markdown documents. Built with **Tauri, Rust, React, and TypeScript**, it combines powerful editing capabilities with native desktop integration, flexible document management, and an emphasis on preserving the integrity of your Markdown files.
 
 With four editing modes, live previews, workspace navigation, and multiple export formats, Marquellium provides a comprehensive Markdown environment without requiring cloud services or proprietary document formats.
 
-**Developed and published by dodson labs.**
+**Developed by Randel Dodson.**
 
 ---
+
+## Install on macOS
+
+Open `Marquellium_1.0.0_aarch64.dmg`, then drag **Marquellium** into the **Applications** folder shown in the disk image. Eject the disk image and launch Marquellium from Applications.
+
+The current installer targets Apple Silicon Macs. Local development packages are not Apple-notarized; a signed, notarized public release requires an Apple Developer ID certificate and notarization credentials. See [macOS release gates](docs/release.md).
+
+To build the installer on macOS with the development prerequisites installed:
+
+```sh
+pnpm package:macos
+```
+
+The disk image is written to `src-tauri/target/release/bundle/dmg/`. The command uses a local ad hoc signature by default. Set `APPLE_SIGNING_IDENTITY` to an installed Developer ID Application identity when preparing a signed release; notarization remains a separate release step.
 
 ## Features
 
@@ -297,16 +313,8 @@ Changes affecting document editing or persistence should preserve Markdown sourc
 
 Marquellium's source code is available under the **MIT License**.
 
-Copyright © 2026 Randy Dodson, publishing under the name dodson labs.
+Copyright © 2026 Randel Dodson.
 
 See the [LICENSE](LICENSE) file for the complete license terms.
 
 ---
-
-## About dodson labs
-
-**dodson labs** is an independent open-source software publishing identity operated by Randy Dodson.
-
-The goal of dodson labs is to develop and publish useful, thoughtfully engineered software with an emphasis on reliability, maintainability, and open development.
-
-Marquellium is developed and published under the **dodson labs** name, with copyright ownership retained by Randy Dodson.
