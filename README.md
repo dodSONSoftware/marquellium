@@ -1,6 +1,6 @@
 # Marquellium
 
-**Release:** Zinc Mongoose — version 1.1.0.
+**Release:** Zinc Mongoose — version 1.1.1.
 
 **A modern, local-first Markdown viewer and editor for macOS.**
 
@@ -14,7 +14,7 @@ With four editing modes, live previews, workspace navigation, and multiple expor
 
 ## Install on macOS
 
-Open `Marquellium_1.0.0_aarch64.dmg`, then drag **Marquellium** into the **Applications** folder shown in the disk image. Eject the disk image and launch Marquellium from Applications.
+Open `Marquellium_1.1.0_aarch64.dmg`, then drag **Marquellium** into the **Applications** folder shown in the disk image. Eject the disk image and launch Marquellium from Applications.
 
 The current installer targets Apple Silicon Macs. Local development packages are not Apple-notarized; a signed, notarized public release requires an Apple Developer ID certificate and notarization credentials. See [macOS release gates](docs/release.md).
 
