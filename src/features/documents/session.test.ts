@@ -69,6 +69,13 @@ describe("sessionFromTabs", () => {
       expect(Object.keys(t).sort()).toEqual(["mode", "path"]);
     }
   });
+
+  it("persists pins with their files in the reordered session", () => {
+    const ordered = [{ ...tabs[2]!, pinned: true }, tabs[1]!, tabs[0]!];
+    const state = sessionFromTabs(ordered, pathOf, "doc-a", []);
+    expect(state.tabs).toEqual([{ path: "/notes/b.md", mode: "split", pinned: true }, { path: "/notes/a.md", mode: "read" }]);
+    expect(state.activeIndex).toBe(1);
+  });
 });
 
 describe("pickRestoredActive", () => {

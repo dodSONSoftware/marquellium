@@ -83,12 +83,13 @@ export interface Settings {
   sidebar: { visible: boolean; width: number; section: "files" | "toc" };
 }
 
-// FR-033/FR-004: restored tabs (file path + mode only — content never) and
+// FR-033/FR-004: restored tabs (path, mode and pin state) and
 // most-recent-first file history. Untitled docs are not session tabs; their
 // content is covered by recovery snapshots (FR-006).
 export interface SessionTab {
   path: string;
   mode: string;
+  pinned?: boolean;
 }
 
 export interface SessionState {
@@ -147,6 +148,7 @@ export const native = {
   openExternal: (url: string) => invoke<void>("open_external_url", { url }),
 
   documents: {
+    reveal: (docId: string) => invoke<void>("documents_reveal", { docId }),
     new: () => invoke<string>("documents_new"),
     open: (path: string, convertLatin1 = false) =>
       invoke<DocumentSnapshot>("documents_open", { path, convertLatin1 }),

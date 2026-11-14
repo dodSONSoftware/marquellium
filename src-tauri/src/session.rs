@@ -2,7 +2,7 @@
 //! as schema-versioned JSON in the app-data directory (ADR-004).
 //!
 //! Restoration contract:
-//!  - a tab stores only its file path and its selected mode — never content.
+//!  - a tab stores its file path, selected mode and pin state.
 //!    Unsaved content is covered by the crash-recovery snapshots (FR-006),
 //!    which are surfaced separately and never merged over a file;
 //!  - recent entries are paths only, most-recent-first, capped, and de-
@@ -42,6 +42,8 @@ pub struct SessionTab {
     /// Mode this tab was showing: "read" | "source" | "split" | "visual".
     #[serde(default = "default_mode")]
     pub mode: String,
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 fn default_version() -> u32 {
@@ -208,6 +210,7 @@ mod tests {
             tabs: vec![SessionTab {
                 path: "/x.md".into(),
                 mode: "split".into(),
+                pinned: true,
             }],
             active_index: 0,
             recent_files: vec!["/x.md".into(), "/y.md".into()],

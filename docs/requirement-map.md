@@ -1,5 +1,7 @@
 # Requirement → Task Map
 
+The [November 13 M0/M1 handoff](m0-m1-handoff-2026-11-13.md) records the current PRD section 17 task map, save-safety correction, executed verification and open security/acceptance dependencies. Earlier milestone statuses below retain their historical context.
+
 PRD §17.1: "produce a requirement-to-task map, explicitly identifying unmet dependencies or security issues." Statuses: `M0` planned/started now, `M1`… as per PRD §11. `✅ M1` / `✅ M2` = delivered and test-covered in that milestone's gate.
 
 ## Document lifecycle (FR-001…009)
@@ -81,7 +83,7 @@ PRD §17.1: "produce a requirement-to-task map, explicitly identifying unmet dep
 | NFR | Task | Milestone |
 |---|---|---|
 | NFR-001/002/003 | Launch/open/typing benchmarks on documented baseline | M5 — 30 native fresh-process runs/3000 dispatches; exact boundaries and remaining cache limits in `m5-results.md` |
-| NFR-004 | Fault injection (crash, disk-full, interrupted write, external edit) | ✅ M1 (atomic-save, stale-save, torn-snapshot, external-edit tests) |
+| NFR-004 | Fault injection (crash, disk-full, interrupted write, external edit) | Automated atomic-save, stale-save, torn-snapshot and external-edit tests pass. November 13 adds injected partial-write/StorageFull coverage; physical disk-full/power-loss acceptance remains open (see current handoff) |
 | NFR-005 | 100% unsupported-construct retention (fixture round-trip) | M3V (gate), enforced forever |
 | NFR-006 | Offline suite (no network) | ✅ M2 spot (structurally offline: no fetch path, CSP `connect-src 'self'`, remote images placeholdered; manual offline spot-check in gate), M5 full |
 | NFR-007 | Keyboard operation of core workflows | M3 (core), M5 (QA checklist) |

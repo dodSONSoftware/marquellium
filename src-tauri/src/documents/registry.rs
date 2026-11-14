@@ -248,6 +248,10 @@ impl DocumentRegistry {
         self.lock().docs.get(&key).map(|_| key)
     }
 
+    pub fn file_path(&self, id: &str) -> Option<PathBuf> {
+        self.lock().docs.get(id)?.path.clone()
+    }
+
     pub fn snapshot(&self, id: &str) -> Option<DocumentSnapshot> {
         let inner = self.lock();
         let e = inner.docs.get(id)?;

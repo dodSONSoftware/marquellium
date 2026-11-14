@@ -1,0 +1,16 @@
+feat: add persistent tab controls and harden document saves
+
+[1.1.0] Zinc Mongoose
+
+- tabs: Add pointer reordering, persistent pins, grouped close actions, and Reveal in Finder
+- shell: Restore main-window bounds, separate pinned tabs, and show formatting controls when space permits
+- about: Focus the dialog on opening without preselecting an action button
+- persistence: Use exclusive random temporary files with cleanup and no-clobber Save As handling
+- tests: Cover tab actions, session pins, close cancellation, temporary symlinks, overlapping saves, and partial-write failures
+- build: Pin frontend dependency ranges, add runtime tempfile support, and declare macOS 14 as the package minimum
+- docs: Record PRD M0/M1 traceability, ADR-005, validation evidence, and remaining security and acceptance work
+- workflow: Add repository Git commit execution instructions
+- VERSION: Increment the repository release from 1.0.0 to 1.1.0
+- README.md: Update Zinc Mongoose release information, tab features, and the current handoff link
+
+developed by Randel Dodson and AI

@@ -340,6 +340,21 @@ async fn closing_one_shared_view_preserves_the_other_windows_dirty_document() {
 }
 
 #[tokio::test]
+async fn canceling_a_group_close_keeps_previously_resolved_tabs_open() {
+    let mut host = TestHost::new(&["discard", "cancel"]);
+    let ids = host.views["b"].clone();
+    host.views.get_mut("a").unwrap().clear();
+    host.registry.release_view(&ids[0]).unwrap();
+    assert!(!resolve(&host, "b", Trigger::CloseTab, ids.clone(), &host.windows())
+        .await
+        .unwrap());
+    for id in ids {
+        assert!(host.registry.snapshot(&id).unwrap().dirty);
+        assert_eq!(host.registry.release_view(&id).unwrap(), 0);
+    }
+}
+
+#[tokio::test]
 async fn close_tab_releases_only_its_view_before_the_barrier_ends() {
     let host = TestHost::new(&[]);
     let id = host.id();

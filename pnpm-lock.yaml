@@ -176,7 +176,7 @@ importers:
         specifier: 6.13.1
         version: 6.13.1
       '@codemirror/search':
-        specifier: ^6.7.2
+        specifier: 6.7.2
         version: 6.7.2
       '@codemirror/state':
         specifier: 6.7.6
@@ -185,7 +185,7 @@ importers:
         specifier: 6.43.15
         version: 6.43.15
       '@lezer/highlight':
-        specifier: ^1.2.5
+        specifier: 1.2.5
         version: 1.2.5
       '@tauri-apps/api':
         specifier: 2.12.4

@@ -16,6 +16,7 @@ it("shows current application details, the bundled license and the verified repo
     const dialog = host.querySelector("dialog")!;
     expect([...host.querySelectorAll(".modal-actions > button")].map((button) => button.textContent)).toEqual(["View license…", "GitHub repository…", "OK"]);
     expect(host.querySelector(".about-identity img")?.getAttribute("src")).toContain("marquellium-logo-light.svg");
+    expect(document.activeElement).toBe(dialog);
     expect(dialog.querySelector("h2")).toBeNull();
     expect(dialog.getAttribute("aria-label")).toBe("About Marquellium"); expect(dialog.open).toBe(true);
     expect(dialog.textContent).toContain(`version ${version}`); expect(dialog.textContent).toContain("Randel Dodson"); expect([...dialog.querySelectorAll("dt")].map((term) => term.textContent)).toEqual(["Developer", "Copyright", "License"]);
@@ -43,6 +44,7 @@ it("suspends for document resolution, closes with Escape and restores the logo o
     await act(async () => root.render(<AboutDialog {...props} />));
     await act(async () => root.render(<AboutDialog {...props} suspended />)); expect(host.querySelector("dialog")!.open).toBe(false);
     await act(async () => root.render(<AboutDialog {...props} suspended={false} />)); expect(host.querySelector("dialog")!.open).toBe(true);
+    expect(document.activeElement).toBe(host.querySelector("dialog"));
     const cancel = new Event("cancel", { cancelable: true });
     await act(async () => host.querySelector("dialog")!.dispatchEvent(cancel)); expect(close).toHaveBeenCalledTimes(1); expect(cancel.defaultPrevented).toBe(true);
     await act(async () => root.unmount()); expect(document.activeElement).toBe(opener);

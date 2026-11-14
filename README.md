@@ -1,6 +1,6 @@
 # Marquellium
 
-**Release:** Iron Mongoose — version 1.0.0.
+**Release:** Zinc Mongoose — version 1.1.0.
 
 **A modern, local-first Markdown viewer and editor for macOS.**
 
@@ -46,6 +46,8 @@ All four modes operate on the same underlying Markdown document, preserving cons
 ### Document management
 
 - Multiple document tabs and application windows.
+- Drag-to-reorder tabs, persistent pinning, and tab context menus with group-close and Reveal in Finder actions.
+- Main-window position and size restored across launches.
 - Automatic session persistence and document recovery.
 - Unsaved-change detection and safe application shutdown.
 - Recent document history.
@@ -139,6 +141,7 @@ The project is progressing toward its first stable release. Remaining acceptance
 
 Detailed development and validation records are maintained in the repository:
 
+- [Current M0/M1 handoff, save-safety verification, and open acceptance tasks](docs/m0-m1-handoff-2026-11-13.md)
 - [Development checkpoint review](docs/checkpoint-review-2026-11-02.md)
 - [Visual editing acceptance](docs/m3v-acceptance.md)
 - [M4 implementation results](docs/m4-results.md)

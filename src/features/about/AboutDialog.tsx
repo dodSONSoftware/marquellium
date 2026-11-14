@@ -8,7 +8,7 @@ import "./about.css";
 
 export function AboutDialog({ onClose, onOpenExternal, suspended = false, theme = "light" }: { onClose: () => void; onOpenExternal: (url: string) => void; suspended?: boolean; theme?: "light" | "dark" }) {
   const [showLicense, setShowLicense] = useState(false);
-  return <Modal showTitle={false} title="About Marquellium" className="about-dialog" closeLabel="OK" suspended={suspended} onClose={onClose} afterActions={showLicense && <section id="marquellium-license" className="about-license" aria-label="MIT License"><pre>{license}</pre></section>} footer={<>
+  return <Modal focusDialog showTitle={false} title="About Marquellium" className="about-dialog" closeLabel="OK" suspended={suspended} onClose={onClose} afterActions={showLicense && <section id="marquellium-license" className="about-license" aria-label="MIT License"><pre>{license}</pre></section>} footer={<>
           <button type="button" aria-expanded={showLicense} aria-controls="marquellium-license" onClick={() => setShowLicense((open) => !open)}>{showLicense ? "Hide license" : "View license…"}</button>
           <button type="button" onClick={() => onOpenExternal("https://github.com/dodSONSoftware/marquellium")}>GitHub repository…</button>
 </>}>

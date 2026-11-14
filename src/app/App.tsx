@@ -5,6 +5,7 @@ import logoLight from "../assets/branding/marquellium-logo-light.svg";
 import logoDark from "../assets/branding/marquellium-logo-dark.svg";
 import { ResizeHandle } from "../features/layout/ResizeHandle";
 import { DocumentTabs } from "../features/documents/DocumentTabs";
+import { moveTab, toggleTabPin } from "../features/documents/tab-order";
 import { useFileOpenRequests } from "../features/documents/useFileOpenRequests";
 import { useBenchmark } from "../features/settings/useBenchmark";
 import { ExportDialog } from "../features/export/ExportDialog";
@@ -145,6 +146,7 @@ const EDIT_COMMANDS: { cmd: EditCommandId; label: string; title: string }[] = [
 interface Tab {
   docId: string;
   mode: ViewMode;
+  pinned?: boolean;
 }
 
 type Modal =
@@ -340,13 +342,13 @@ export function App() {
           .catch(() => {});
       }
       if (s.tabs.length === 0) return;
-      const opened: { docId: string; mode: ViewMode; orig: number }[] = [];
+      const opened: (Tab & { orig: number })[] = [];
       for (let i = 0; i < s.tabs.length; i++) {
         const t = s.tabs[i]!;
         try {
           const docId = await store.openDocument(t.path);
           // Explicit stored modes survive the fresh-default change.
-          opened.push({ docId, mode: openMode(t.mode), orig: i });
+          opened.push({ docId, mode: openMode(t.mode), pinned: t.pinned, orig: i });
         } catch {
           /* missing or unreadable: skip gracefully */
         }
@@ -358,7 +360,7 @@ export function App() {
       );
       const active = opened[activeIdx]!;
       setTabs((ts) =>
-        ts.length > 0 ? ts : opened.map(({ docId, mode }) => ({ docId, mode })),
+        ts.length > 0 ? ts : opened.map(({ docId, mode, pinned }) => ({ docId, mode, pinned })),
       );
       setActiveId((cur) => (cur !== null ? cur : active.docId));
     },
@@ -429,9 +431,9 @@ export function App() {
     }
   }, []);
 
-  // FR-033: persist tab set + active + recents, debounced. Paths are read
-  // from docStateRef (kept fresh by the store subscription) so per-keystroke
-  // broadcasts don't re-trigger the write; only tab/active/recents changes do.
+  // Save As changes a tab's path without changing its ID or order.
+  // Track path values so content-only broadcasts do not postpone persistence.
+  const sessionPaths = JSON.stringify(tabs.map((tab) => docState.get(tab.docId)?.path ?? null));
   // Armed only after the startup restore resolves (restoredRef) so a slow
   // restore can't be clobbered by an early empty write.
   useEffect(() => {
@@ -447,7 +449,7 @@ export function App() {
       void native.session.set(state).catch(() => {});
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [tabs, activeId, recents]);
+  }, [tabs, activeId, recents, sessionPaths]);
 
   // Best-effort immediate write on pagehide (the debounce may not have fired).
   useEffect(() => {
@@ -670,19 +672,6 @@ export function App() {
     const id = await store.newDocument();
     addTab(id);
   }, [store, addTab, activeId]);
-
-  /** FR-004: drag-reorder a tab (no document state touched — order only). */
-  const moveTab = useCallback((from: number, to: number) => {
-    if (from === to) return;
-    setTabs((ts) => {
-      if (from < 0 || from >= ts.length || to < 0 || to >= ts.length) return ts;
-      const next = [...ts];
-      const [moved] = next.splice(from, 1);
-      if (!moved) return ts;
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
 
   /**
    * Open a document by filesystem path (dialog, drag & drop, recents,
@@ -1183,13 +1172,14 @@ export function App() {
           </ToolbarMenu>
           </div>
         </div>
-        <div className="command-section" role="group" aria-label="Format">
+        <div className="command-section format-section" role="group" aria-label="Format">
           <span className="command-label">Format</span>
           <div className="command-controls">
             {formattingButtons.slice(0, 5)}
-          <ToolbarMenu label="More formatting"><div className="format-overflow">
+            <div className="format-inline">{formattingButtons.slice(5)}</div>
+          <div className="format-menu"><ToolbarMenu label="More formatting"><div className="format-overflow">
             {formattingButtons.slice(5)}
-          </div></ToolbarMenu>
+          </div></ToolbarMenu></div>
           </div>
         </div>
         <div className="deck-utilities">
@@ -1256,14 +1246,17 @@ export function App() {
           </ToolbarMenu>
         </div>
       </header>
-      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { docId: tab.docId, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false }; })} activeId={activeId}
+      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { ...tab, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false, path: document?.path ?? null }; })} activeId={activeId}
         onSelect={(id) => {
           if (activeId === id) return;
           void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {
             if (!allowed) return;
             captureContext(); setVisualContext(viewContexts.current.get(id) ?? null); setActiveId(id);
           });
-        }} onClose={(id) => requestClose("close-tab", [id])} onNew={() => void newDocument()} onMove={moveTab} />
+        }} onClose={(ids) => requestClose("close-tab", ids)} onNew={() => void newDocument()}
+        onMove={(id, target) => setTabs((ts) => moveTab(ts, id, target))}
+        onPin={(id) => setTabs((ts) => toggleTabPin(ts, id))}
+        onReveal={(id) => void native.documents.reveal(id).catch((error) => flash(String(error)))} />
       <div className="view-strip toolbar" role="group" aria-label="Document view">
         <button
           className={

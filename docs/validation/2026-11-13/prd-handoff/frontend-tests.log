@@ -1,0 +1,60 @@
+? Verifying lockfile against supply-chain policies (376 entries)...
+Update available! 12.16.1 → 12.18.0.
+Changelog: https://pnpm.io/v/12.18.0
+To update, run: curl -fsSL https://get.pnpm.io/install.sh | sh -
+✓ Lockfile passes supply-chain policies (376 entries in 1.3s)
+Lockfile is up to date, resolution step is skipped
+Packages: +342
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 342, reused 342, downloaded 0, added 342, done
+
+dependencies:
++ @codemirror/commands 6.11.1
++ @codemirror/lang-markdown 6.5.2
++ @codemirror/language 6.13.1
++ @codemirror/search 6.7.2
++ @codemirror/state 6.7.6
++ @codemirror/view 6.43.15
++ @lezer/highlight 1.2.5
++ @tauri-apps/api 2.12.4
++ @tauri-apps/plugin-clipboard-manager 2.5.0
++ highlight.js 11.12.0
++ katex 0.19.1
++ mermaid 12.2.0
++ react 19.3.1
++ react-dom 19.3.1
++ react-markdown 10.1.0
++ rehype-stringify 10.0.1
++ remark-frontmatter 5.0.0
++ remark-gfm 4.0.1
++ remark-math 6.0.0
++ remark-parse 11.0.0
++ remark-rehype 11.1.2
++ unified 11.0.5
+
+devDependencies:
++ @tauri-apps/cli 2.12.4
++ @types/highlight.js 10.1.0
++ @types/node 24.19.2
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ @vitejs/plugin-react 6.1.2
++ jsdom 26.1.0
++ typescript 5.9.3
++ vite 8.3.5
++ vitest 5.0.5
+
+Done in 1.4s using pnpm v12.16.1
+$ vitest run
+
+ RUN  v5.0.5 /Users/randydodson/Documents/_code/markdown_viewer
+
+
+ Test Files  44 passed (44)
+      Tests  519 passed (519)
+   Start at  22:18:28
+   Duration  5.41s (tests 56%, environment 20%, import 14%, transform 10%)
+
+    Isolate  44 workers spawned · ~184ms startup each (spawn + environment, per file)
+             at least ~355ms faster with isolate: false — reuses workers across files instead of one per file
+

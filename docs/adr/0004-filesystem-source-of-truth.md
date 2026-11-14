@@ -21,6 +21,14 @@ The app must persist user state without becoming a document database. Documents 
 
 ## Consequences
 
+### Save hardening verified November 13, 2026
+
+Save creates an exclusive, randomly named temporary file in the destination directory using `tempfile` 3.27.0. The temporary name is independent of the destination filename. An existing predictable temporary path or symlink cannot be truncated. The file retains the destination's permissions where available, then synchronizes data and permissions before the final revision check. Existing destinations use atomic replacement. New destinations use persist-without-clobber semantics. Temporary ownership handles cleanup on errors.
+
+Regression tests cover a pre-existing temporary symlink, overlapping saves, a partial write followed by an injected storage-full error, and an external write before replacement. The injected error exercises the production write/error path. Physical disk exhaustion and power-loss behavior still require environment-level acceptance.
+
+The final content revision check and filesystem replacement are separate operations. An independent process can write in that interval. This is an outstanding limitation of the current conflict contract, including after this hardening. The in-process registry serializes application edits and saves. Directory synchronization remains best effort on platforms that support opening directories.
+
 - `DocumentsService` (Rust) is the only code path that touches user files; all operations scoped and unit/integration-tested (M1 gate).
 - Settings schema changes require a migration test (FR-034).
 - Recovery is *not* autosave: the user's file on disk is only changed by explicit Save (§1B.5).

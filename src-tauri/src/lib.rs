@@ -51,6 +51,11 @@ pub const EV_DOC_CHANGED_ON_DISK: &str = "document-changed-on-disk";
 pub const EV_DOC_SAVED: &str = "document-saved";
 pub const EV_MENU_COMMAND: &str = "menu-command";
 
+const MAIN_WINDOW_STATE: tauri_plugin_window_state::StateFlags =
+    tauri_plugin_window_state::StateFlags::SIZE
+        .union(tauri_plugin_window_state::StateFlags::POSITION)
+        .union(tauri_plugin_window_state::StateFlags::MAXIMIZED);
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct MenuCmd {
@@ -153,6 +158,34 @@ fn watch_follow(watch: &State<'_, WatchState>, path: &std::path::Path) {
     };
     if let Some(w) = guard.as_mut() {
         let _ = w.watch(path, notify::RecursiveMode::NonRecursive);
+    }
+}
+
+#[tauri::command]
+async fn documents_reveal(reg: State<'_, DocumentRegistry>, doc_id: String) -> Result<(), String> {
+    let path = reg
+        .file_path(&doc_id)
+        .ok_or("Save the document before revealing it.")?;
+    if !path.is_file() {
+        return Err(format!("File no longer exists: {}", path.display()));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let status = tokio::process::Command::new("/usr/bin/open")
+            .arg("-R")
+            .arg(path)
+            .status()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err(format!("Finder could not reveal the file ({status})."));
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let parent = path.parent().ok_or("The file has no containing folder.")?;
+        open::that(parent).map_err(|e| e.to_string())
     }
 }
 
@@ -1228,6 +1261,12 @@ pub fn run() {
                 eprintln!("File-open delivery: {error}");
             }
         }))
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_filter(|label| label == "main")
+                .with_state_flags(MAIN_WINDOW_STATE)
+                .build(),
+        )
         .manage(incoming)
         .manage(benchmark_state)
         .manage(DocumentRegistry::new())
@@ -1364,6 +1403,7 @@ pub fn run() {
             documents_new,
             documents_open,
             documents_snapshot,
+            documents_reveal,
             documents_acquire,
             documents_release,
             documents_dispose,

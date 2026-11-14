@@ -227,6 +227,13 @@ impl Host for NativeHost<'_> {
             .await
     }
     fn close(&self, window: &str) -> Result<(), String> {
+        // Coordinated Quit destroys the window without a native CloseRequested event.
+        if window == "main" {
+            use tauri_plugin_window_state::AppHandleExt;
+            if let Err(error) = self.app.save_window_state(crate::MAIN_WINDOW_STATE) {
+                eprintln!("Could not save the main window's position and size: {error}");
+            }
+        }
         self.app
             .get_webview_window(window)
             .ok_or("window closed before execution")?

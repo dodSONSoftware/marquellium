@@ -1,7 +1,7 @@
 /**
  * Pure helpers for session persistence and restoration (FR-033/FR-004).
  *
- * The session stores file paths + modes only — never content. Untitled
+ * The session stores file paths and tab presentation only. Untitled
  * documents are not session tabs: their (possibly unsaved) content is
  * owned by the crash-recovery snapshots (FR-006), so restoring a session
  * can structurally never overwrite unsaved content.
@@ -11,6 +11,7 @@ import type { SessionState } from "../../services/native";
 export interface TabRef {
   docId: string;
   mode: string;
+  pinned?: boolean;
 }
 
 /**
@@ -31,7 +32,7 @@ export function sessionFromTabs(
     const path = pathOf(t.docId);
     if (!path) return;
     if (t.docId === activeId) activeIdx = persisted.length;
-    persisted.push({ path, mode: t.mode });
+    persisted.push({ path, mode: t.mode, ...(t.pinned && { pinned: true }) });
   });
   return {
     schemaVersion: 1,

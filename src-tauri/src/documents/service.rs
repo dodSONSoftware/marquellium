@@ -231,6 +231,22 @@ fn save_atomic_checked(
     expected: Option<&DiskRevision>,
     before_replace: impl FnOnce(),
 ) -> Result<DiskRevision, SaveError> {
+    save_atomic_with_writer(
+        path,
+        bytes,
+        expected,
+        before_replace,
+        std::io::Write::write_all,
+    )
+}
+
+fn save_atomic_with_writer(
+    path: &Path,
+    bytes: &[u8],
+    expected: Option<&DiskRevision>,
+    before_replace: impl FnOnce(),
+    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+) -> Result<DiskRevision, SaveError> {
     let check = || -> Result<(), SaveError> {
         match (expected, disk_revision(path)) {
             (Some(exp), Ok(current)) if revisions_equal(exp, &current) => Ok(()),
@@ -245,49 +261,34 @@ fn save_atomic_checked(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let tmp = dir.join(format!(
-        ".{}.mdviewer-tmp-{}",
-        path.file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default(),
-        std::process::id()
-    ));
-
-    let result = (|| -> Result<DiskRevision, SaveError> {
-        let mut f = std::fs::File::create(&tmp)?;
-        use std::io::Write as _;
-        f.write_all(bytes)?;
-        f.sync_all()?;
-        drop(f);
-        // Preserve the original file's permissions where supported.
+    // Exclusive random creation avoids truncating a pre-existing file or symlink.
+    // RAII removes only this save's temporary file on any pre-commit error.
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".mdviewer-save-")
+        .tempfile_in(dir)?;
+    {
+        write(temporary.as_file_mut(), bytes)?;
         if let Ok(meta) = std::fs::metadata(path) {
-            std::fs::set_permissions(&tmp, meta.permissions())?;
+            temporary.as_file().set_permissions(meta.permissions())?;
         }
-        before_replace();
-        check()?;
-        if expected.is_none() {
-            // A hard link creates the new target atomically without replacing
-            // a file another process created after the absence check.
-            std::fs::hard_link(&tmp, path)?;
-            std::fs::remove_file(&tmp)?;
-        } else {
-            std::fs::rename(&tmp, path)?;
-        }
-        // Best-effort directory sync (durability of the rename itself);
-        // ignored on platforms where directories are not openable this way.
-        if let Ok(dir_file) = std::fs::File::open(dir) {
-            let _ = dir_file.sync_all();
-        }
-        Ok(disk_revision(path)?)
-    })();
-
-    match result {
-        Ok(rev) => Ok(rev),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            Err(e)
-        }
+        temporary.as_file().sync_all()?;
     }
+    before_replace();
+    check()?;
+    if expected.is_none() {
+        temporary
+            .persist_noclobber(path)
+            .map_err(|error| SaveError::Io(error.error))?;
+    } else {
+        temporary
+            .persist(path)
+            .map_err(|error| SaveError::Io(error.error))?;
+    }
+    // Directory synchronization is best effort on platforms that support it.
+    if let Ok(dir_file) = std::fs::File::open(dir) {
+        let _ = dir_file.sync_all();
+    }
+    Ok(disk_revision(path)?)
 }
 
 /// A revision check helper for the watcher: did our own save cause the
@@ -300,6 +301,64 @@ pub fn revisions_equal(a: &DiskRevision, b: &DiskRevision) -> bool {
 #[cfg(test)]
 mod save_regressions {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn preexisting_predictable_temp_symlink_cannot_truncate_another_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        let victim = dir.path().join("unrelated.md");
+        std::fs::write(&path, b"original").unwrap();
+        std::fs::write(&victim, b"keep this").unwrap();
+        let old_temp = dir
+            .path()
+            .join(format!(".note.md.mdviewer-tmp-{}", std::process::id()));
+        std::os::unix::fs::symlink(&victim, &old_temp).unwrap();
+        let revision = disk_revision(&path).unwrap();
+        save_atomic(&path, b"saved", Some(&revision)).unwrap();
+        assert_eq!(std::fs::read(&victim).unwrap(), b"keep this");
+        assert!(old_temp.is_symlink());
+        assert_eq!(std::fs::read(path).unwrap(), b"saved");
+    }
+
+    #[test]
+    fn partial_write_failure_preserves_original_and_cleans_only_its_temporary_file() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        std::fs::write(&path, b"original").unwrap();
+        let revision = disk_revision(&path).unwrap();
+        let result = save_atomic_with_writer(
+            &path,
+            b"replacement",
+            Some(&revision),
+            || {},
+            |file, bytes| {
+                file.write_all(&bytes[..3])?;
+                Err(std::io::Error::from(std::io::ErrorKind::StorageFull))
+            },
+        );
+        assert!(
+            matches!(result, Err(SaveError::Io(error)) if error.kind() == std::io::ErrorKind::StorageFull)
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"original");
+        assert_eq!(disk_revision(&path).unwrap(), revision);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn overlapping_save_does_not_share_or_delete_another_saves_temporary_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        std::fs::write(&path, b"original").unwrap();
+        let revision = disk_revision(&path).unwrap();
+        let result = save_atomic_checked(&path, b"outer", Some(&revision), || {
+            save_atomic(&path, b"inner", Some(&revision)).unwrap();
+        });
+        assert!(matches!(result, Err(SaveError::Conflict(_))));
+        assert_eq!(std::fs::read(path).unwrap(), b"inner");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
 
     #[test]
     fn explicit_new_target_is_created_without_overwriting_existing_files() {
