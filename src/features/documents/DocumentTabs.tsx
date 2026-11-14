@@ -147,7 +147,7 @@ export function DocumentTabs({ tabs, activeId, onSelect, onClose, onNew, onMove,
             if (target !== null) { e.preventDefault(); buttons[target]?.focus(); }
           }}>
           {tab.pinned && <span className="tab-pin" role="img" aria-label="Pinned">📌</span>}
-          <span className="tab-name">{tab.name}</span>{tab.dirty && <span className="dot" aria-label="unsaved changes" />}
+          <span className="tab-name">{tab.name}</span>{tab.dirty && <span className="dot" role="img" aria-label="unsaved changes" title="Unsaved changes" />}
         </button>
         <button className="tab-close" aria-label={`Close ${tab.name}`} onClick={() => onClose([tab.docId])}>×</button>
       </div>)}

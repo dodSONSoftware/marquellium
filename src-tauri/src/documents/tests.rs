@@ -209,6 +209,22 @@ fn op(start: u32, end: u32, text: &str) -> DocOp {
 }
 
 #[test]
+fn untitled_starts_clean_and_undoing_the_first_edit_restores_clean_state() {
+    let registry = DocumentRegistry::new();
+    let id = registry.create_untitled();
+    assert!(!registry.snapshot(&id).unwrap().dirty);
+    registry.apply_transaction(&id, &WireTransaction {
+        base_revision: 0,
+        ops: vec![op(0, 0, "unsaved")],
+    }).unwrap();
+    assert!(registry.snapshot(&id).unwrap().dirty);
+    registry.undo(&id).unwrap();
+    assert!(!registry.snapshot(&id).unwrap().dirty);
+    registry.redo(&id).unwrap();
+    assert!(registry.snapshot(&id).unwrap().dirty);
+}
+
+#[test]
 fn apply_transaction_updates_content_and_revision() {
     let reg = DocumentRegistry::new();
     let id = reg.create_untitled();

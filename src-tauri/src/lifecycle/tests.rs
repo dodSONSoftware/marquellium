@@ -158,8 +158,10 @@ impl Host for TestHost {
             .pop_front()
             .ok_or("missing test choice")?;
         if choice == "saved" {
+            let target = self.registry.snapshot(&id).unwrap().path.is_none()
+                .then(|| self._dir.path().join("saved-untitled.md"));
             self.registry
-                .save_to_disk(&id, None)
+                .save_to_disk(&id, target)
                 .map_err(|e| e.to_string())?;
         }
         if choice == "applied" {
@@ -337,6 +339,36 @@ async fn closing_one_shared_view_preserves_the_other_windows_dirty_document() {
     assert_eq!(*host.closed.lock().unwrap(), vec!["a"]);
     assert!(host.registry.snapshot(&host.id()).unwrap().dirty);
     assert!(!host.quit.load(Ordering::SeqCst));
+}
+
+#[tokio::test]
+async fn clean_new_tab_closes_without_a_prompt_and_edited_new_tabs_resolve_changes() {
+    for choice in [None, Some("cancel"), Some("discard"), Some("saved")] {
+        let choices: Vec<&str> = choice.into_iter().collect();
+        let mut host = TestHost::new(&choices);
+        let id = host.registry.create_untitled();
+        host.registry.acquire_view(&id).unwrap();
+        host.views.insert("a".into(), vec![id.clone()]);
+        host.views.insert("b".into(), vec![]);
+        if choice.is_some() {
+            host.registry.apply_transaction(&id, &WireTransaction {
+                base_revision: 0,
+                ops: vec![DocOp { start_byte: 0, end_byte: 0, text: "new content".into() }],
+            }).unwrap();
+        }
+        let closed = resolve(&host, "a", Trigger::CloseTab, vec![id.clone()], &host.windows()).await.unwrap();
+        assert_eq!(closed, choice != Some("cancel"));
+        if !closed {
+            let snapshot = host.registry.snapshot(&id).unwrap();
+            assert!(snapshot.dirty);
+            assert_eq!(snapshot.content, "new content");
+        } else {
+            assert!(host.registry.snapshot(&id).is_none());
+        }
+        if choice == Some("saved") {
+            assert_eq!(std::fs::read_to_string(host._dir.path().join("saved-untitled.md")).unwrap(), "new content");
+        }
+    }
 }
 
 #[tokio::test]

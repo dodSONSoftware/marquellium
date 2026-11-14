@@ -1246,7 +1246,7 @@ export function App() {
           </ToolbarMenu>
         </div>
       </header>
-      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { ...tab, name: document ? docName(document) : tab.docId, dirty: document?.dirty ?? false, path: document?.path ?? null }; })} activeId={activeId}
+      <DocumentTabs tabs={tabs.map((tab) => { const document = docState.get(tab.docId); return { ...tab, name: document ? docName(document) : tab.docId, dirty: store.isDirty(tab.docId), path: document?.path ?? null }; })} activeId={activeId}
         onSelect={(id) => {
           if (activeId === id) return;
           void lifecycleRef.current.begin("tab-switch", activeId ? [activeId] : []).then((allowed) => {

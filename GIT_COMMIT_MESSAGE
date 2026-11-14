@@ -1,10 +1,16 @@
-chore: synchronize application version and advance release metadata
+feat: add categorized preferences and improve document dirty-state handling
 
-[1.1.1] Zinc Mongoose
+[1.2.0] Aluminum Mongoose
 
-- package.json: Set the frontend and About dialog version to 1.1.0
-- src-tauri: Set the Rust package, lockfile entry, and Tauri bundle version to 1.1.0
-- VERSION: Increment the repository release from 1.1.0 to 1.1.1 as required by the commit workflow
-- README.md: Update Zinc Mongoose release information and the 1.1.0 installer filename
+- preferences: Add Appearance, Documents, and Editor pages with persistent movable and resizable dialog bounds
+- preferences: Preserve drafts across page changes, validate hidden fields, retain failed saves, and keep Save, Cancel, and Reset available
+- documents: Start untitled documents clean and restore clean state when undo returns them to empty
+- tabs: Show accessible unsaved-change dots immediately for pending edits and clear them after a zero-net-change burst
+- lifecycle: Clarify Save, Discard, and Cancel prompts and cover closing clean and edited untitled documents
+- tests: Add placement restoration, resizing, page draft retention, save-failure, dirty-state notification, and new-document close regressions
+- styling: Darken the tab-strip background while retaining distinct unselected tab surfaces
+- metadata: Commit the existing application version alignment to 1.1.1 and matching installer filename
+- VERSION: Increment the repository release from 1.1.1 to 1.2.0
+- README.md: Update Aluminum Mongoose release information and document Preferences and dirty-state behavior
 
 developed by Randel Dodson and AI

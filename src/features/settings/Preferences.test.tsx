@@ -67,7 +67,7 @@ it("offers a dedicated normal-size reset and closing does not save the draft", a
     await act(async () => root.render(<Preferences settings={settings} onSave={save} onClose={close} />));
     await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent === "Reset to 100%")!.click());
     expect(host.querySelector("output")?.textContent).toBe("100%");
-    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent === "Close")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent === "Cancel")!.click());
     expect(close).toHaveBeenCalledTimes(1); expect(save).not.toHaveBeenCalled(); expect(settings.uiScale).toBe(200);
   } finally { await act(async () => root.unmount()); vi.unstubAllGlobals(); }
 });

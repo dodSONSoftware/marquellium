@@ -1,6 +1,6 @@
 [package]
 name = "markdown-viewer"
-version = "1.1.0"
+version = "1.1.1"
 description = "Local-first Markdown viewer and editor (PRD v2.0)"
 authors = ["Marquellium contributors"]
 edition = "2021"

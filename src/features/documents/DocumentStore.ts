@@ -376,6 +376,7 @@ export class DocumentStore {
   editGroup(docId: string, ops: ByteOp[]): void {
     const doc = this.docs.get(docId);
     if (!doc) return;
+    const wasDirty = this.isDirty(docId);
     let g = this.pendingGroups.get(docId);
     if (!g) {
       g = {
@@ -394,6 +395,7 @@ export class DocumentStore {
     }
     g.ops.push(...ops);
     g.projected = res.next;
+    if (!wasDirty && ops.length > 0) this.emit();
     if (g.timer) clearTimeout(g.timer);
     g.timer = setTimeout(
       () => void this.commitGroup(docId).catch(() => {}),
@@ -449,7 +451,10 @@ export class DocumentStore {
     }
     this.pendingGroups.delete(docId);
     const ops = groupDiffOps(g.start, g.projected);
-    if (ops.length === 0) return; // burst netted to zero (e.g. type+delete)
+    if (ops.length === 0) {
+      this.emit(); // A type/delete burst returned to the clean baseline.
+      return;
+    }
     this.scheduleRecovery(docId);
     this.committingBytes.set(docId, g.projected);
     const commit = this.enqueue(docId, ops);

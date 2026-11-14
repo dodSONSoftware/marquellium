@@ -124,7 +124,7 @@ export function useLifecycle(store: Pick<DocumentStore, "flushAll" | "list">, ac
   };
   const draft = callbacks.current.activity().draft;
   const dialog = prompt ? <div className="overlay" role="dialog" aria-modal="true"><div className="dialog">
-    <h3>{prompt.lease ? "Resolve unapplied draft" : "Resolve unsaved document"}</h3>
+    <h3>{prompt.lease ? "Resolve unapplied draft" : "Save changes to this document?"}</h3>
     <p>{prompt.request.body.displayName ?? prompt.snapshot?.path ?? (prompt.lease ? "Document draft" : "Untitled")}</p>
     <p>{prompt.request.body.trigger === "quit" ? "Quit will close all windows only after every document is resolved." : "Resolve this document before continuing."}</p>
     {prompt.snapshot && <pre aria-label="Document preview">{Array.from(prompt.snapshot.content.slice(0, 180)).slice(0, 120).join("") || "Empty document"}</pre>}

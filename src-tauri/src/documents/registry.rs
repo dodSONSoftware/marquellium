@@ -107,7 +107,7 @@ impl DocEntry {
     /// revision. Only called on undo/redo (rare), never on read paths.
     pub fn recompute_dirty(&mut self) {
         if self.path.is_none() || self.saved_revision.is_none() {
-            self.dirty = true;
+            self.dirty = !self.content.is_empty() || self.bom;
             return;
         }
         let cur = crate::documents::service::disk_revision_bytes(&self.file_bytes());
@@ -191,7 +191,7 @@ impl DocumentRegistry {
             revision: 0,
             saved_revision: None,
             disk_revision: None,
-            dirty: true,
+            dirty: false,
             recovery_conflicted: false,
             views: 0,
             draft: None,

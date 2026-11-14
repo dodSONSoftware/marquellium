@@ -1,6 +1,6 @@
 # Marquellium
 
-**Release:** Zinc Mongoose — version 1.1.1.
+**Release:** Aluminum Mongoose — version 1.2.0.
 
 **A modern, local-first Markdown viewer and editor for macOS.**
 
@@ -14,7 +14,7 @@ With four editing modes, live previews, workspace navigation, and multiple expor
 
 ## Install on macOS
 
-Open `Marquellium_1.1.0_aarch64.dmg`, then drag **Marquellium** into the **Applications** folder shown in the disk image. Eject the disk image and launch Marquellium from Applications.
+Open `Marquellium_1.1.1_aarch64.dmg`, then drag **Marquellium** into the **Applications** folder shown in the disk image. Eject the disk image and launch Marquellium from Applications.
 
 The current installer targets Apple Silicon Macs. Local development packages are not Apple-notarized; a signed, notarized public release requires an Apple Developer ID certificate and notarization credentials. See [macOS release gates](docs/release.md).
 
@@ -48,8 +48,10 @@ All four modes operate on the same underlying Markdown document, preserving cons
 - Multiple document tabs and application windows.
 - Drag-to-reorder tabs, persistent pinning, and tab context menus with group-close and Reveal in Finder actions.
 - Main-window position and size restored across launches.
+- Appearance, Documents, and Editor preferences pages in a movable, resizable dialog with remembered placement.
 - Automatic session persistence and document recovery.
-- Unsaved-change detection and safe application shutdown.
+- Per-document unsaved-change dots and Save / Discard / Cancel prompts for edited documents. New documents start clean.
+- Safe application shutdown with unsaved-change resolution.
 - Recent document history.
 - Workspace folder navigation and document search.
 - External file modification detection and conflict handling.

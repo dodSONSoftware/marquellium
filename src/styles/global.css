@@ -607,8 +607,8 @@ body {
   .format-inline { display: flex; }
   .format-menu { display: none; }
 }
-.tabbar { background: var(--chrome-raised); border-color: var(--chrome-line); padding-left: 16px; }
-.tab { min-height: 46px; border-right: 1px solid var(--chrome-line); border-top: 2px solid transparent; color: var(--chrome-muted); padding: 0 6px 0 0; }
+.tabbar { background: color-mix(in srgb, var(--chrome-raised), black 22%); border-color: var(--chrome-line); padding-left: 16px; }
+.tab { min-height: 46px; background: var(--chrome-raised); border-right: 1px solid var(--chrome-line); border-top: 2px solid transparent; color: var(--chrome-muted); padding: 0 6px 0 0; }
 .tab.active { border-top-color: var(--chrome-accent); background: var(--chrome-bg); color: var(--chrome-text); }
 .tab .dot { background: #f4b654; }
 .tab-select { flex: 1; align-self: stretch; padding: 0 0 0 12px; cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }

@@ -361,10 +361,26 @@ describe("document lifecycle barriers", () => {
   it("reports uncommitted typing as dirty for close resolution", async () => {
     const store = new DocumentStore();
     const id = await store.newDocument();
+    const dirtyStates: boolean[] = [];
+    store.subscribe(() => dirtyStates.push(store.isDirty(id)));
     expect(store.isDirty(id)).toBe(false);
     keystroke(store, id, "", 0, 0, "unsaved");
     expect(store.isDirty(id)).toBe(true);
+    expect(dirtyStates).toContain(true);
     await store.flushGroup(id);
+  });
+
+  it("notifies the tab strip when a pending type/delete burst returns to clean", async () => {
+    const store = new DocumentStore();
+    const id = await store.newDocument();
+    const dirtyStates: boolean[] = [];
+    store.subscribe(() => dirtyStates.push(store.isDirty(id)));
+    keystroke(store, id, "", 0, 0, "x");
+    keystroke(store, id, "x", 0, 1, "");
+    await store.flushGroup(id);
+    expect(dirtyStates[0]).toBe(true);
+    expect(dirtyStates.at(-1)).toBe(false);
+    expect(store.isDirty(id)).toBe(false);
   });
 
   it("save waits for a commit already dispatched by the timer", async () => {
