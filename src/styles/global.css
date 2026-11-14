@@ -613,6 +613,7 @@ body {
 .tab .dot { background: #f4b654; }
 .tab-select { flex: 1; align-self: stretch; padding: 0 0 0 12px; cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .tab-select:active { cursor: grabbing; }
+.tab.dragging { opacity: .25; }
 .tab-pin { font-size: .75rem; }
 .tab.pinned + .tab:not(.pinned) { margin-left: 8px; border-left: 1px solid var(--chrome-line); }
 .tab.drop-before { box-shadow: inset 3px 0 var(--chrome-accent); }

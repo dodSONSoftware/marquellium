@@ -86,13 +86,18 @@ it("commits a pointer drag on release and suppresses the click that follows it",
     await act(async () => source.dispatchEvent(event));
   };
   try {
-    await pointer("pointerdown", 10); await pointer("pointermove", 70);
+    await pointer("pointerdown", 10);
+    expect(source.parentElement!.classList.contains("dragging")).toBe(false);
+    await pointer("pointermove", 70);
+    expect(source.parentElement!.classList.contains("dragging")).toBe(true);
     expect(move).not.toHaveBeenCalled(); expect(target.parentElement!.classList.contains("drop-after")).toBe(true);
     await pointer("pointerup", 70);
+    expect(source.parentElement!.classList.contains("dragging")).toBe(false);
     await act(async () => source.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 })));
     expect(move).toHaveBeenCalledExactlyOnceWith("b", "c");
     expect(select).not.toHaveBeenCalled(); expect(close).not.toHaveBeenCalled();
     await pointer("pointerdown", 20); await pointer("pointermove", 60); await pointer("pointercancel", 60);
+    expect(source.parentElement!.classList.contains("dragging")).toBe(false);
     await pointer("pointerup", 60); expect(move).toHaveBeenCalledTimes(1);
   } finally { document.elementFromPoint = original; }
 });

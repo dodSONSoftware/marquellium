@@ -75,11 +75,12 @@ export function DocumentTabs({ tabs, activeId, onSelect, onClose, onNew, onMove,
   const gesture = useRef<Gesture | null>(null);
   const suppressClick = useRef(false);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuPosition | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const menuTab = tabs.find((tab) => tab.docId === menu?.id);
 
-  const clearDrag = () => { gesture.current = null; setDropTarget(null); };
+  const clearDrag = () => { gesture.current = null; setDropTarget(null); setDraggingId(null); };
   const targetAt = (e: PointerEvent, id: string) => {
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-tab-id]");
     if (!hit || !list.current?.contains(hit) || hit.dataset.tabId === id) return null;
@@ -96,6 +97,7 @@ export function DocumentTabs({ tabs, activeId, onSelect, onClose, onNew, onMove,
   const move = (e: PointerEvent) => {
     const drag = gesture.current;
     if (!drag || drag.pointer !== e.pointerId || (!drag.moved && Math.abs(e.clientX - drag.startX) < 5)) return;
+    if (!drag.moved) setDraggingId(drag.id);
     drag.moved = true;
     suppressClick.current = true;
     const strip = list.current?.parentElement;
@@ -127,7 +129,7 @@ export function DocumentTabs({ tabs, activeId, onSelect, onClose, onNew, onMove,
   return <><div className="tabbar">
     <div className="document-tabs" role="tablist" aria-label="Documents" ref={list}>
       {tabs.map((tab, index) => <div key={tab.docId} data-tab-id={tab.docId}
-        className={["tab", tab.pinned && "pinned", tab.docId === activeId && "active", tab.dirty && "dirty", dropTarget === tab.docId && (sourceIndex < index ? "drop-after" : "drop-before")].filter(Boolean).join(" ")}
+        className={["tab", tab.pinned && "pinned", tab.docId === activeId && "active", tab.dirty && "dirty", draggingId === tab.docId && "dragging", dropTarget === tab.docId && (sourceIndex < index ? "drop-after" : "drop-before")].filter(Boolean).join(" ")}
         onContextMenu={(e) => { e.preventDefault(); showMenu({ id: tab.docId, x: e.clientX, y: e.clientY }, e.currentTarget); }}>
         <button className="tab-select" role="tab" aria-selected={tab.docId === activeId} aria-controls="document-panel" aria-haspopup="menu"
           tabIndex={tab.docId === activeId || activeId === null && index === 0 ? 0 : -1}

@@ -1,6 +1,6 @@
 # Marquellium
 
-**Release:** Aluminum Mongoose — version 1.2.0.
+**Release:** Aluminum Mongoose — version 1.2.1.
 
 **A modern, local-first Markdown viewer and editor for macOS.**
 
